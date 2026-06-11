@@ -89,39 +89,40 @@ function injectAuthPanel(){
 /**
  * Fungsi Logout yang diperbaiki untuk memastikan semua session dihapus total
  */
-js
 async function doCloudLogout(){
   try {
+    // 1. Matikan background sync
     if(typeof _stopPolling === 'function') _stopPolling();
     
-    // 1. Logout & Paksa Revoke
+    // 2. Logout Global (Revoke Refresh Token di Server)
     if(window._supa){ 
        await window._supa.auth.signOut({ scope: 'global' }); 
-       // KRITIKAL: Hapus referensi agar tidak bisa auto-recover
-       window._supa = null; 
+       // Hancurkan instance agar tidak bisa auto-connect lagi
+       window._supa = null;
     }
     
-    // 2. Bersihkan Storage secara paksa
+    // 3. Pembersihan Total Storage
     localStorage.clear();
     sessionStorage.clear();
     
-    // 3. Bersihkan Cookie khusus Supabase secara spesifik
-    const supaCookies = ['sb-access-token', 'sb-refresh-token', 'supabase-auth-token'];
-    supaCookies.forEach(name => {
-      document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;`;
-      document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=${window.location.hostname}`;
-    });
+    // 4. Hapus Cookie Supabase secara spesifik
+    const cookies = document.cookie.split(";");
+    for (let i = 0; i < cookies.length; i++) {
+        const name = cookies[i].split("=")[0].trim();
+        document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
+        document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=" + window.location.hostname;
+    }
 
-    // 4. Reset Flag Login
+    // 5. Reset Status Global
     window._userData = null;
     window._userRole = null;
     
-    // 5. Hard Redirect tanpa ampun
-    // Jangan gunakan window.location.origin + window.location.pathname saja
-    // Arahkan ke root dengan query string yang benar-benar baru
-    window.location.replace('/?logout_success=' + Date.now());
+    // 6. Hard Reset tanpa cache (menggunakan replace agar history hilang)
+    const cleanUrl = window.location.origin + window.location.pathname;
+    window.location.replace(cleanUrl + '?loggedout=' + Date.now());
     
   } catch(e){
+    console.error('Logout error:', e);
     localStorage.clear();
     window.location.replace('/');
   }
