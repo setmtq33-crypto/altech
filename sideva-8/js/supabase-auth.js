@@ -86,45 +86,67 @@ function injectAuthPanel(){
   m.innerHTML=`<div><span>☁️ ${u?.email||''}</span> <span class="role-${r}">${r}</span></div><button onclick="loadAllData().then(()=>renderAll())">🔄 Refresh</button> <button onclick="doCloudLogout()">Keluar</button>`; 
 }
 
-/**
- * Fungsi Logout yang diperbaiki untuk memastikan semua session dihapus total
- */
-async function doCloudLogout(){
-  try {
-    // 1. Matikan background sync
-    if(typeof _stopPolling === 'function') _stopPolling();
-    
-    // 2. Logout Global (Revoke Refresh Token di Server)
-    if(window._supa){ 
-       await window._supa.auth.signOut({ scope: 'global' }); 
-       // Hancurkan instance agar tidak bisa auto-connect lagi
-       window._supa = null;
+function _clearSupabaseStorage(){
+  localStorage.removeItem('sideva_session_v3');
+  Object.keys(localStorage).forEach(key => {
+    if (key.startsWith('sb-') || key.includes('supabase')) {
+      localStorage.removeItem(key);
     }
-    
-    // 3. Pembersihan Total Storage
-    localStorage.clear();
-    sessionStorage.clear();
-    
-    // 4. Hapus Cookie Supabase secara spesifik
+  });
+  Object.keys(sessionStorage).forEach(key => {
+    if (key.startsWith('sb-') || key.includes('supabase')) {
+      sessionStorage.removeItem(key);
+    }
+  });
+}
+
+function _withTimeout(promise, ms){
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error('Logout timeout')), ms))
+  ]);
+}
+
+async function doCloudLogout(){
+  const btn = document.getElementById('logout-btn');
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Keluar...';
+  }
+
+  try {
+    if(typeof _stopPolling === 'function') _stopPolling();
+
+    if (typeof sbLogout === 'function') {
+      await _withTimeout(sbLogout(), 4000);
+    }
+
+    if(window._supa?.auth?.signOut){
+      try {
+        await _withTimeout(window._supa.auth.signOut({ scope: 'global' }), 4000);
+      } catch(_) {}
+    }
+
+    _clearSupabaseStorage();
+
     const cookies = document.cookie.split(";");
     for (let i = 0; i < cookies.length; i++) {
         const name = cookies[i].split("=")[0].trim();
+        if (!name || (!name.startsWith('sb-') && !name.includes('supabase'))) continue;
         document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
         document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=" + window.location.hostname;
     }
 
-    // 5. Reset Status Global
     window._userData = null;
     window._userRole = null;
-    
-    // 6. Hard Reset tanpa cache (menggunakan replace agar history hilang)
+
     const cleanUrl = window.location.origin + window.location.pathname;
     window.location.replace(cleanUrl + '?loggedout=' + Date.now());
     
   } catch(e){
     console.error('Logout error:', e);
-    localStorage.clear();
-    window.location.replace('/');
+    _clearSupabaseStorage();
+    window.location.replace(window.location.pathname + '?loggedout=' + Date.now());
   }
 }
 window.doCloudLogout = doCloudLogout;

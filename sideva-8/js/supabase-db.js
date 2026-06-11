@@ -76,7 +76,33 @@ if (window._supa) {
 
 async function sbLogin(email, password) { const data = await sbFetch('/auth/v1/token?grant_type=password', 'POST', { email, password }); _session = data; localStorage.setItem('sideva_session_v3', JSON.stringify(data)); await _loadRole(); window.dispatchEvent(new CustomEvent('sideva:user-login', { detail: { user: { email } } })); return data; }
 async function sbRegister(email, password) { return sbFetch('/auth/v1/signup', 'POST', { email, password }); }
-async function sbLogout() { try { if (_session?.access_token) await sbFetch('/auth/v1/logout', 'POST'); } catch(_) {} _session = null; _userRole = null; window._userOpdName = null; localStorage.removeItem('sideva_session_v3'); if (_pollTimer) clearInterval(_pollTimer); window.dispatchEvent(new CustomEvent('sideva:user-logout')); }
+async function sbLogout() {
+  const session = _session;
+  _session = null;
+  _userRole = null;
+  window._userOpdName = null;
+  window._userData = null;
+  window._userRole = null;
+  window._userOpd = null;
+  localStorage.removeItem('sideva_session_v3');
+  if (_pollTimer) {
+    clearInterval(_pollTimer);
+    _pollTimer = null;
+  }
+  window.dispatchEvent(new CustomEvent('sideva:user-logout'));
+
+  try {
+    if (session?.access_token) {
+      await sbFetch(
+        '/auth/v1/logout',
+        'POST',
+        null,
+        { Authorization: 'Bearer ' + session.access_token },
+        0
+      );
+    }
+  } catch(_) {}
+}
 async function sbRefreshToken() { if (!_session?.refresh_token) return false; try { const data = await sbFetch('/auth/v1/token?grant_type=refresh_token', 'POST', { refresh_token: _session.refresh_token }); _session = data; localStorage.setItem('sideva_session_v3', JSON.stringify(data)); return true; } catch(_) { return false; } }
 async function sbRestoreSession() { const saved = localStorage.getItem('sideva_session_v3'); if (!saved) return false; try { _session = JSON.parse(saved); const ok = await sbRefreshToken(); if (!ok) { _session = null; return false; } await _loadRole(); return true; } catch(_) { return false; } }
 
