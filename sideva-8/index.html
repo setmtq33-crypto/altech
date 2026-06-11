@@ -5569,37 +5569,58 @@ window.addEventListener('sb-ready', () => setTimeout(tgFillForm, 200));
      SCRIPTS
      ════════════════════════════════════════════════════════════ -->
 
+<!-- KONFIGURASI & BACKEND (WAJIB PALING ATAS) -->
 <script src="js/config.js"></script>
 <script src="js/supabase-db.js"></script>
 <script src="js/supabase-auth.js"></script>
+
+<!-- MULTI OPD (LANGSUNG SETELAH AUTH) -->
 <script src="js/multi-opd-db.js"></script>
 <script src="js/multi-opd-admin.js"></script>
 <script src="js/multi-opd-ui.js"></script>
+
+<!-- MODUL INTI DASHBOARD -->
 <script src="js/dashboard.js"></script>
-<script src="js/dashboard-charts.js"></script> 
-<script src="js/audit-log.js"></script>
-<script src="js/telegram-notify.js"></script>
+<script src="js/dashboard-charts.js"></script>
+<script src="js/dashboard-filter.js"></script>
 <script src="js/dashboard-paket.js"></script>
 <script src="js/dashboard-documents.js"></script>
-<script src="js/fix-dokumen-menu.js"></script>
+
+<!-- PERBAIKAN UI & MENU (URUTAN PENTING) -->
+<script src="js/fix-dokumen-menu.js"></script>      <!-- perbaiki menu dokumen dulu -->
+<script src="js/branding-patch.js"></script>       <!-- lalu branding sidebar -->
+<!-- HAPUS atau KOMENTARI: js/kopsurat-logo-patch.js (redundan dengan logo-kop-upload) -->
+<script src="js/logo-kop-upload.js"></script>      <!-- upload logo -->
+
+<!-- NOTIFIKASI & EKSTERNAL -->
+<script src="js/telegram-notify.js"></script>
 <script src="js/wa-notify.js"></script>
+
+<!-- FITUR MANAJEMEN & PENGAJUAN -->
 <script src="js/user-management.js"></script>
 <script src="js/pengajuan.js"></script>
-<script src="js/dashboard-filter.js"></script>
+
+<!-- PENCARIAN, REKAP, SINKRONISASI -->
 <script src="js/global-search.js"></script>
-<script src="js/kopsurat-logo-patch.js"></script>
-<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
-<script src="js/export-excel.js"></script>
 <script src="js/rekap-bidang.js"></script>
 <script src="js/sync-data.js"></script>
-<script src="js/branding-patch.js"></script>
-<script src="js/help-page.js"></script>
-<script src="js/laporan-charts-patch.js"></script>
-<script src="js/laporan-print-patch.js"></script>  
-<script src="js/logo-kop-upload.js"></script>
+
+<!-- EKSPOR EXCEL (WAJIB SETELAH SHEETJS) -->
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<script src="js/export-excel.js"></script>
+
+<!-- PATCH TAMBAHAN (pastikan tidak konflik) -->
 <script src="js/rup-search-patch.js"></script>
 <script src="js/theme-dark-patch.js"></script>
 <script src="js/perf-optimize.js"></script>
+<script src="js/help-page.js"></script>
+
+<!-- PATCH LAPORAN (lebih baik dipindah ke halaman laporan, tapi biarkan di sini dulu) -->
+<script src="js/laporan-charts-patch.js"></script>
+<script src="js/laporan-print-patch.js"></script>
+
+<!-- AUDIT LOG & MOBILE -->
+<script src="js/audit-log.js"></script>
 <script src="mobile-camera-upload.js"></script>
   
 
