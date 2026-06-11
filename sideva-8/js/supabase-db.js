@@ -104,7 +104,36 @@ async function sbLogout() {
   } catch(_) {}
 }
 async function sbRefreshToken() { if (!_session?.refresh_token) return false; try { const data = await sbFetch('/auth/v1/token?grant_type=refresh_token', 'POST', { refresh_token: _session.refresh_token }); _session = data; localStorage.setItem('sideva_session_v3', JSON.stringify(data)); return true; } catch(_) { return false; } }
-async function sbRestoreSession() { const saved = localStorage.getItem('sideva_session_v3'); if (!saved) return false; try { _session = JSON.parse(saved); const ok = await sbRefreshToken(); if (!ok) { _session = null; return false; } await _loadRole(); return true; } catch(_) { return false; } }
+function sbClearLocalSession() {
+  _session = null;
+  _userRole = null;
+  window._userOpdName = null;
+  window._userData = null;
+  window._userRole = null;
+  window._userOpd = null;
+  localStorage.removeItem('sideva_session_v3');
+}
+async function sbRestoreSession() {
+  if (new URLSearchParams(window.location.search).has('loggedout')) {
+    sbClearLocalSession();
+    return false;
+  }
+  const saved = localStorage.getItem('sideva_session_v3');
+  if (!saved) return false;
+  try {
+    _session = JSON.parse(saved);
+    const ok = await sbRefreshToken();
+    if (!ok) {
+      sbClearLocalSession();
+      return false;
+    }
+    await _loadRole();
+    return true;
+  } catch(_) {
+    sbClearLocalSession();
+    return false;
+  }
+}
 
 async function _loadRole() {
   try {

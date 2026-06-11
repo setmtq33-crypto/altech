@@ -4,11 +4,12 @@
 (function injectAuthStyle(){ 
   const s=document.createElement('style'); 
   s.id='sideva-auth-style'; 
-  s.textContent=`.hidden{display:none!important}.admin-only{display:none!important}button.admin-only.sideva-admin-show,.nav-item.admin-only.sideva-admin-show{display:flex!important;width:100%}#role-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700}.role-super_admin{background:rgba(168,85,247,.15);color:#a855f7;border:1px solid rgba(168,85,247,.3)}.role-admin_opd{background:rgba(251,191,36,.15);color:#fbbf24;border:1px solid rgba(251,191,36,.3)}.role-admin{background:rgba(251,191,36,.15);color:#fbbf24;border:1px solid rgba(251,191,36,.3)}.role-operator{background:rgba(96,165,250,.15);color:#60a5fa;border:1px solid rgba(96,165,250,.3)}.role-viewer{background:rgba(148,163,184,.15);color:#94a3b8;border:1px solid rgba(148,163,184,.3)}`; 
+  s.textContent=`.hidden{display:none!important}.admin-only{display:none!important}button.admin-only.sideva-admin-show,.nav-item.admin-only.sideva-admin-show{display:flex!important;width:100%}body.sideva-auth-locked{overflow:hidden!important}body.sideva-auth-locked .app{visibility:hidden!important;pointer-events:none!important}#auth-overlay{position:fixed!important;inset:0!important;z-index:999999!important;display:flex!important;align-items:center!important;justify-content:center!important;padding:16px!important;background:linear-gradient(135deg,rgba(15,23,42,.96),rgba(17,24,39,.94))!important;box-sizing:border-box!important}#auth-box{box-shadow:0 24px 80px rgba(0,0,0,.45)!important;border:1px solid rgba(255,255,255,.12)!important}#role-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700}.role-super_admin{background:rgba(168,85,247,.15);color:#a855f7;border:1px solid rgba(168,85,247,.3)}.role-admin_opd{background:rgba(251,191,36,.15);color:#fbbf24;border:1px solid rgba(251,191,36,.3)}.role-admin{background:rgba(251,191,36,.15);color:#fbbf24;border:1px solid rgba(251,191,36,.3)}.role-operator{background:rgba(96,165,250,.15);color:#60a5fa;border:1px solid rgba(96,165,250,.3)}.role-viewer{background:rgba(148,163,184,.15);color:#94a3b8;border:1px solid rgba(148,163,184,.3)}`;
   document.head.appendChild(s); 
 })();
 
 function showAuthOverlay(){ 
+  document.body.classList.add('sideva-auth-locked');
   const o=document.getElementById('auth-overlay'); 
   if(o) o.remove(); 
   const d=document.createElement('div'); 
@@ -17,7 +18,10 @@ function showAuthOverlay(){
   document.body.appendChild(d); 
 }
 
-function hideAuthOverlay(){ document.getElementById('auth-overlay')?.remove(); }
+function hideAuthOverlay(){
+  document.body.classList.remove('sideva-auth-locked');
+  document.getElementById('auth-overlay')?.remove();
+}
 
 async function doAuthLogin(){ 
   const e=document.getElementById('ai-email')?.value.trim(); 
@@ -116,6 +120,7 @@ async function doCloudLogout(){
 
   try {
     if(typeof _stopPolling === 'function') _stopPolling();
+    showAuthOverlay();
 
     if (typeof sbLogout === 'function') {
       await _withTimeout(sbLogout(), 4000);
