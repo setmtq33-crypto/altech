@@ -1,5 +1,5 @@
 // ============================================================
-// SI-DEVA — Supabase Database Layer v8.1 (PATCH nama_opd)
+// SI-DEVA — Supabase Database Layer v8.1 (nama_opd patch)
 // ============================================================
 
 const SUPABASE_URL = window.SUPABASE_URL;
@@ -28,183 +28,59 @@ window.FIELD_MAP = {
     to: r => ({ no: r.no, nama_penyedia: r.namaPenyedia, alamat: r.alamat, bentuk_usaha: r.bentukUsaha, status: r.status, tipe: r.tipe, link_toko: r.linkToko, opd_id: r.opd_id || r.opdId || null }),
     from: r => ({ id: r.id, no: r.no, namaPenyedia: r.nama_penyedia, alamat: r.alamat, bentukUsaha: r.bentuk_usaha, status: r.status, tipe: r.tipe, linkToko: r.link_toko, opd_id: r.opd_id, opdId: r.opd_id }),
   },
-  bidang: {
-    to: r => ({ nama_bidang: r.namaBidang, kode_surat: r.kodeSurat, kepala_bidang: r.kepalaBidang, nip: r.nip, opd_id: r.opd_id || r.opdId || null }),
-    from: r => ({ id: r.id, namaBidang: r.nama_bidang, kodeSurat: r.kode_surat, kepalaBidang: r.kepala_bidang, nip: r.nip, opd_id: r.opd_id, opdId: r.opd_id }),
-  },
-  opd: {
-    to: r => ({ nama_opd: r.namaOpd }),
-    from: r => ({ id: r.id, nama: r.nama_opd, namaOpd: r.nama_opd, namaOPD: r.nama_opd }),
-  },
-  rekening: {
-    to: r => ({ kode_rekening: r.kodeRekening, link_ecatalog: r.linkKatalog || r.linkEcatalog, opd_id: r.opd_id || r.opdId || null }),
-    from: r => ({ id: r.id, kodeRekening: r.kode_rekening, linkEcatalog: r.link_ecatalog, linkKatalog: r.link_ecatalog, opd_id: r.opd_id, opdId: r.opd_id }),
-  },
-  ppk: {
-    to: r => ({ nama_ppk: r.namaPPK || r.nama, nip: r.nip, jabatan: r.jabatan, scan_ttd: r.scanTTD || r.ttd || null, lebar_ttd: r.lebarTTD || r.ttdSizeW || null, tinggi_ttd: r.tinggiTTD || r.ttdSizeH || null, cap_stempel: r.capStempel || r.cap || null, lebar_cap: r.lebarCap || r.capSizeW || null, tinggi_cap: r.tinggiCap || r.capSizeH || null, opd_id: r.opd_id || r.opdId || null }),
-    from: r => ({ id: r.id, nama: r.nama_ppk, namaPPK: r.nama_ppk, nip: r.nip, jabatan: r.jabatan, ttd: r.scan_ttd, cap: r.cap_stempel, ttdSizeW: r.lebar_ttd, ttdSizeH: r.tinggi_ttd, capSizeW: r.lebar_cap, capSizeH: r.tinggi_cap, scanTTD: r.scan_ttd, capStempel: r.cap_stempel, lebarTTD: r.lebar_ttd, tinggiTTD: r.tinggi_ttd, lebarCap: r.lebar_cap, tinggiCap: r.tinggi_cap, opd_id: r.opd_id, opdId: r.opd_id }),
-  },
-  pejabatPengadaan: {
-    to: r => ({ nama_pejabat: r.namaPejabat || r.nama, nip: r.nip, jabatan: r.jabatan, opd_id: r.opd_id || r.opdId || null }),
-    from: r => ({ id: r.id, nama: r.nama_pejabat, namaPejabat: r.nama_pejabat, nip: r.nip, jabatan: r.jabatan, opd_id: r.opd_id, opdId: r.opd_id }),
-  },
-  ecatalog: {
-    to: r => ({ jenis_belanja: r.jenisBelanja || r.jenisBlanja, link_ecatalog: r.linkEcatalog, opd_id: r.opd_id || r.opdId || null }),
-    from: r => ({ id: r.id, jenisBelanja: r.jenis_belanja, linkEcatalog: r.link_ecatalog, opd_id: r.opd_id, opdId: r.opd_id }),
-  },
+  bidang: { to: r => ({ nama_bidang: r.namaBidang, kode_surat: r.kodeSurat, kepala_bidang: r.kepalaBidang, nip: r.nip, opd_id: r.opd_id || r.opdId || null }), from: r => ({ id: r.id, namaBidang: r.nama_bidang, kodeSurat: r.kode_surat, kepalaBidang: r.kepala_bidang, nip: r.nip, opd_id: r.opd_id, opdId: r.opd_id }) },
+  opd: { to: r => ({ nama_opd: r.namaOpd }), from: r => ({ id: r.id, nama: r.nama_opd, namaOpd: r.nama_opd }) },
+  rekening: { to: r => ({ kode_rekening: r.kodeRekening, link_ecatalog: r.linkKatalog || r.linkEcatalog, opd_id: r.opd_id || r.opdId || null }), from: r => ({ id: r.id, kodeRekening: r.kode_rekening, linkEcatalog: r.link_ecatalog, linkKatalog: r.link_ecatalog, opd_id: r.opd_id, opdId: r.opd_id }) },
+  ppk: { to: r => ({ nama_ppk: r.namaPPK || r.nama, nip: r.nip, jabatan: r.jabatan, scan_ttd: r.scanTTD || r.ttd || null, lebar_ttd: r.lebarTTD || r.ttdSizeW || null, tinggi_ttd: r.tinggiTTD || r.ttdSizeH || null, cap_stempel: r.capStempel || r.cap || null, lebar_cap: r.lebarCap || r.capSizeW || null, tinggi_cap: r.tinggiCap || r.capSizeH || null, opd_id: r.opd_id || r.opdId || null }), from: r => ({ id: r.id, nama: r.nama_ppk, namaPPK: r.nama_ppk, nip: r.nip, jabatan: r.jabatan, ttd: r.scan_ttd, cap: r.cap_stempel, ttdSizeW: r.lebar_ttd, ttdSizeH: r.tinggi_ttd, capSizeW: r.lebar_cap, capSizeH: r.tinggi_cap, opd_id: r.opd_id, opdId: r.opd_id }) },
+  pejabatPengadaan: { to: r => ({ nama_pejabat: r.namaPejabat || r.nama, nip: r.nip, jabatan: r.jabatan, opd_id: r.opd_id || r.opdId || null }), from: r => ({ id: r.id, nama: r.nama_pejabat, namaPejabat: r.nama_pejabat, nip: r.nip, jabatan: r.jabatan, opd_id: r.opd_id, opdId: r.opd_id }) },
+  ecatalog: { to: r => ({ jenis_belanja: r.jenisBelanja || r.jenisBlanja, link_ecatalog: r.linkEcatalog, opd_id: r.opd_id || r.opdId || null }), from: r => ({ id: r.id, jenisBelanja: r.jenis_belanja, linkEcatalog: r.link_ecatalog, opd_id: r.opd_id, opdId: r.opd_id }) },
 };
 
 let _session = null;
 let _userRole = null;
-let _userOpdName = null;
 let _pollTimer = null;
+window._userOpdName = null;
 
 async function sbFetch(path, method = 'GET', body = null, extra = {}, retries = 2) {
   const token = _session?.access_token;
-  const headers = {
-    'apikey': SUPABASE_ANON_KEY,
-    'Content-Type': 'application/json',
-   ...(token? { 'Authorization': 'Bearer ' + token } : {}),
-   ...extra,
-  };
+  const headers = { 'apikey': SUPABASE_ANON_KEY, 'Content-Type': 'application/json',...(token? { 'Authorization': 'Bearer ' + token } : {}),...extra };
   if (method === 'POST' && path.startsWith('/rest/')) headers['Prefer'] = 'resolution=merge-duplicates,return=representation';
   else if (method!== 'GET' && path.startsWith('/rest/')) headers['Prefer'] = 'return=representation';
-
   let url = SUPABASE_URL + path;
-  if (!path.includes('apikey=') &&!path.includes('?')) url += '?apikey=' + encodeURIComponent(SUPABASE_ANON_KEY);
-  else if (!path.includes('apikey=')) url += '&apikey=' + encodeURIComponent(SUPABASE_ANON_KEY);
-
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 15000);
+  if (!path.includes('apikey=')) url += (path.includes('?')? '&' : '?') + 'apikey=' + encodeURIComponent(SUPABASE_ANON_KEY);
+  const controller = new AbortController(); const timeoutId = setTimeout(() => controller.abort(), 15000);
   try {
-    const res = await fetch(url, { method, headers,...(body? { body: JSON.stringify(body) } : {}), signal: controller.signal, mode: 'cors', credentials: 'omit' });
-    clearTimeout(timeoutId);
-    const text = await res.text();
-    const json = text? (() => { try { return JSON.parse(text); } catch(e) { return {}; } })() : {};
-    if (!res.ok) throw new Error(json.message || json.error_description || `HTTP ${res.status}`);
-    return json;
-  } catch(err) {
-    clearTimeout(timeoutId);
-    if (err.name === 'AbortError' && retries > 0) {
-      await new Promise(r => setTimeout(r, 1000));
-      return sbFetch(path, method, body, extra, retries - 1);
-    }
-    if (retries > 0 && (err.message.includes('Failed to fetch') || err.message.includes('API key'))) {
-      await new Promise(r => setTimeout(r, 1000));
-      return sbFetch(path, method, body, extra, retries - 1);
-    }
-    throw err;
-  }
+    const res = await fetch(url, { method, headers,...(body? { body: JSON.stringify(body) } : {}), signal: controller.signal });
+    clearTimeout(timeoutId); const text = await res.text(); const json = text? JSON.parse(text) : {};
+    if (!res.ok) throw new Error(json.message || `HTTP ${res.status}`); return json;
+  } catch(err) { clearTimeout(timeoutId); if (retries > 0) { await new Promise(r => setTimeout(r, 1000)); return sbFetch(path, method, body, extra, retries - 1); } throw err; }
 }
 
-async function sbLogin(email, password) {
-  const data = await sbFetch('/auth/v1/token?grant_type=password', 'POST', { email, password });
-  _session = data;
-  localStorage.setItem('sideva_session_v3', JSON.stringify(data));
-  await _loadRole();
-  window.dispatchEvent(new CustomEvent('sideva:user-login', { detail: { user: { email } } }));
-  return data;
-}
-async function sbLogout() {
-  try { if (_session?.access_token) await sbFetch('/auth/v1/logout', 'POST', null, { 'Authorization': 'Bearer ' + _session.access_token }); } catch(_) {}
-  _session = null; _userRole = null; _userOpdName = null; window._userOpdName = null;
-  localStorage.removeItem('sideva_session_v3'); if (_pollTimer) clearInterval(_pollTimer);
-  window.dispatchEvent(new CustomEvent('sideva:user-logout'));
-}
-async function sbRefreshToken() {
-  if (!_session?.refresh_token) return false;
-  try {
-    const data = await sbFetch('/auth/v1/token?grant_type=refresh_token', 'POST', { refresh_token: _session.refresh_token });
-    _session = data; localStorage.setItem('sideva_session_v3', JSON.stringify(data)); return true;
-  } catch(_) { return false; }
-}
-async function sbRestoreSession() {
-  const saved = localStorage.getItem('sideva_session_v3');
-  if (!saved) return false;
-  try {
-    _session = JSON.parse(saved);
-    const ok = await sbRefreshToken();
-    if (!ok) { _session = null; localStorage.removeItem('sideva_session_v3'); return false; }
-    await _loadRole(); return true;
-  } catch(_) { return false; }
-}
+async function sbLogin(email, password) { const data = await sbFetch('/auth/v1/token?grant_type=password', 'POST', { email, password }); _session = data; localStorage.setItem('sideva_session_v3', JSON.stringify(data)); await _loadRole(); window.dispatchEvent(new CustomEvent('sideva:user-login', { detail: { user: { email } } })); return data; }
+async function sbRegister(email, password) { return sbFetch('/auth/v1/signup', 'POST', { email, password }); }
+async function sbLogout() { try { if (_session?.access_token) await sbFetch('/auth/v1/logout', 'POST'); } catch(_) {} _session = null; _userRole = null; window._userOpdName = null; localStorage.removeItem('sideva_session_v3'); if (_pollTimer) clearInterval(_pollTimer); window.dispatchEvent(new CustomEvent('sideva:user-logout')); }
+async function sbRefreshToken() { if (!_session?.refresh_token) return false; try { const data = await sbFetch('/auth/v1/token?grant_type=refresh_token', 'POST', { refresh_token: _session.refresh_token }); _session = data; localStorage.setItem('sideva_session_v3', JSON.stringify(data)); return true; } catch(_) { return false; } }
+async function sbRestoreSession() { const saved = localStorage.getItem('sideva_session_v3'); if (!saved) return false; try { _session = JSON.parse(saved); const ok = await sbRefreshToken(); if (!ok) { _session = null; return false; } await _loadRole(); return true; } catch(_) { return false; } }
+
 async function _loadRole() {
   try {
     const rows = await sbFetch(`/rest/v1/user_roles?user_id=eq.${_session.user.id}&select=role,nama_opd`, 'GET');
     _userRole = rows?.[0]?.role || 'viewer';
-    _userOpdName = rows?.[0]?.nama_opd || null;
-    window._userOpdName = _userOpdName;
-  }
-  catch(_) { _userRole = 'viewer'; _userOpdName = null; window._userOpdName = null; }
+    window._userOpdName = rows?.[0]?.nama_opd || null;
+  } catch(_) { _userRole = 'viewer'; window._userOpdName = null; }
 }
 function getRole() { return _userRole; }
-function getUserOpdName() { return _userOpdName; }
 function isSuperAdmin() { return _userRole === 'super_admin'; }
 function isAdmin() { return _userRole === 'admin_opd' || _userRole === 'admin' || _userRole === 'super_admin'; }
 function isOperator() { return isAdmin() || _userRole === 'operator'; }
 function isLoggedIn() { return!!_session; }
 function getCurrentUser() { return _session?.user || null; }
 
-async function dbGetAll(store) {
-  const tbl = TABLE_MAP[store] || store;
-  const fmap = FIELD_MAP[store];
-  const rows = await sbFetch(`/rest/v1/${tbl}?select=*&order=id.asc`, 'GET');
-  return fmap? rows.map(fmap.from) : rows;
-}
-async function dbPut(store, data) {
-  const tbl = TABLE_MAP[store] || store, fmap = FIELD_MAP[store];
-  if (!_session?.access_token) throw new Error('Session expired');
-  const payload = fmap? fmap.to(data) : {...data };
-  if (data.opd_id &&!payload.opd_id) payload.opd_id = data.opd_id;
-  Object.keys(payload).forEach(k => { if (payload[k] === undefined) delete payload[k]; });
-  let result;
-  if (data.id) {
-    const rows = await sbFetch(`/rest/v1/${tbl}?id=eq.${data.id}`, 'PATCH', payload);
-    result = fmap? fmap.from(rows[0]) : rows[0];
-  } else {
-    const rows = await sbFetch(`/rest/v1/${tbl}`, 'POST', payload);
-    result = fmap? fmap.from(rows[0]) : rows[0];
-  }
-  return result;
-}
-async function dbDelete(store, id) {
-  const tbl = TABLE_MAP[store] || store;
-  await sbFetch(`/rest/v1/${tbl}?id=eq.${id}`, 'DELETE');
-}
-async function dbClear(store) {
-  if (!isAdmin()) throw new Error('Only admin can clear');
-  const tbl = TABLE_MAP[store] || store;
-  await sbFetch(`/rest/v1/${tbl}?id=neq.0`, 'DELETE');
-}
-async function loadAllData() {
-  if (!_session) return;
-  const [paket, rincian, harga, penyedia, bidang, opd, rekening, ppk, pejabat, ecatalog] = await Promise.all([
-    dbGetAll('paket'), dbGetAll('rincian'), dbGetAll('harga'), dbGetAll('penyedia'), dbGetAll('bidang'),
-    dbGetAll('opd'), dbGetAll('rekening'), dbGetAll('ppk'), dbGetAll('pejabatPengadaan'), dbGetAll('ecatalog')
-  ]);
-  if (typeof state!== 'undefined') {
-    state.paket.data = paket; state.rincian.data = rincian; state.harga.data = harga; state.penyedia.data = penyedia;
-    state.paket.filtered = [...paket]; state.rincian.filtered = [...rincian]; state.harga.filtered = [...harga]; state.penyedia.filtered = [...penyedia];
-  }
-  if (typeof masterState!== 'undefined') {
-    masterState.bidang = bidang; masterState.opd = opd; masterState.rekening = rekening;
-    masterState.ppk = ppk; masterState.pejabatPengadaan = pejabat; masterState.ecatalog = ecatalog;
-  }
-}
-function _startPolling() {
-  if (_pollTimer) clearInterval(_pollTimer);
-  _pollTimer = setInterval(async () => {
-    if (!_session) return;
-    const anyModalOpen = document.querySelector('.modal-overlay.open,.modal.open');
-    if (anyModalOpen) return;
-    const activeEl = document.activeElement;
-    const isTyping = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA');
-    if (isTyping) return;
-    try { await loadAllData(); if (typeof renderAll === 'function') renderAll(); } catch(e) {}
-  }, 60000);
-}
-document.addEventListener('DOMContentLoaded', async () => {
-  const ok = await sbRestoreSession();
-  if (ok) { await loadAllData(); _startPolling(); }
-  window.dispatchEvent(new CustomEvent('sb-ready', { detail: { loggedIn: ok, role: _userRole } }));
-});
+async function dbGetAll(store) { const tbl = TABLE_MAP[store] || store; const fmap = FIELD_MAP[store]; const rows = await sbFetch(`/rest/v1/${tbl}?select=*&order=id.asc`, 'GET'); return fmap? rows.map(fmap.from) : rows; }
+async function dbPut(store, data) { const tbl = TABLE_MAP[store] || store, fmap = FIELD_MAP[store]; if (!_session?.access_token) throw new Error('Session expired'); const payload = fmap? fmap.to(data) : {...data }; Object.keys(payload).forEach(k => { if (payload[k] === undefined) delete payload[k]; }); const rows = await sbFetch(`/rest/v1/${tbl}${data.id? '?id=eq.'+data.id : ''}`, data.id? 'PATCH' : 'POST', payload); return fmap? fmap.from(rows[0]) : rows[0]; }
+async function dbDelete(store, id) { const tbl = TABLE_MAP[store] || store; await sbFetch(`/rest/v1/${tbl}?id=eq.${id}`, 'DELETE'); }
+async function dbClear(store) { if (!isAdmin()) throw new Error('Only admin'); const tbl = TABLE_MAP[store] || store; await sbFetch(`/rest/v1/${tbl}?id=neq.0`, 'DELETE'); }
+
+async function loadAllData() { if (!_session) return; const [paket, rincian, harga, penyedia, bidang, opd, rekening, ppk, pejabat, ecatalog] = await Promise.all([dbGetAll('paket'), dbGetAll('rincian'), dbGetAll('harga'), dbGetAll('penyedia'), dbGetAll('bidang'), dbGetAll('opd'), dbGetAll('rekening'), dbGetAll('ppk'), dbGetAll('pejabatPengadaan'), dbGetAll('ecatalog')]); if (typeof state!== 'undefined') { state.paket.data = paket; state.rincian.data = rincian; state.harga.data = harga; state.penyedia.data = penyedia; state.paket.filtered = [...paket]; } if (typeof masterState!== 'undefined') { masterState.bidang = bidang; masterState.opd = opd; } }
+function _startPolling() { if (_pollTimer) clearInterval(_pollTimer); _pollTimer = setInterval(async () => { if (!_session) return; try { await loadAllData(); if (typeof renderAll === 'function') renderAll(); } catch(e) {} }, 60000); }
+document.addEventListener('DOMContentLoaded', async () => { const ok = await sbRestoreSession(); if (ok) { await loadAllData(); _startPolling(); } window.dispatchEvent(new CustomEvent('sb-ready', { detail: { loggedIn: ok, role: _userRole } })); });
