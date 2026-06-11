@@ -56,6 +56,24 @@ async function sbFetch(path, method = 'GET', body = null, extra = {}, retries = 
   } catch(err) { clearTimeout(timeoutId); if (retries > 0) { await new Promise(r => setTimeout(r, 1000)); return sbFetch(path, method, body, extra, retries - 1); } throw err; }
 }
 
+if (window._supa) {
+  window._supa.auth.onAuthStateChange((event, session) => {
+    console.log("Auth Event:", event);
+    if (event === 'SIGNED_OUT' || event === 'USER_DELETED') {
+      // Pastikan semua data global dibersihkan saat event logout terdeteksi
+      window._userData = null;
+      window._userRole = null;
+      window._userOpd = null;
+      return;
+    }
+    if (session) {
+      window._userData = session.user;
+      // Lanjutkan logika login...
+    }
+  });
+}
+
+
 async function sbLogin(email, password) { const data = await sbFetch('/auth/v1/token?grant_type=password', 'POST', { email, password }); _session = data; localStorage.setItem('sideva_session_v3', JSON.stringify(data)); await _loadRole(); window.dispatchEvent(new CustomEvent('sideva:user-login', { detail: { user: { email } } })); return data; }
 async function sbRegister(email, password) { return sbFetch('/auth/v1/signup', 'POST', { email, password }); }
 async function sbLogout() { try { if (_session?.access_token) await sbFetch('/auth/v1/logout', 'POST'); } catch(_) {} _session = null; _userRole = null; window._userOpdName = null; localStorage.removeItem('sideva_session_v3'); if (_pollTimer) clearInterval(_pollTimer); window.dispatchEvent(new CustomEvent('sideva:user-logout')); }
