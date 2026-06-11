@@ -701,3 +701,12 @@ function _smpDone(ok, dibuat, lewat, gagal) {
     cards.classList.add('show');
   }
 }
+
+async function _startPolling() {
+  // Tambahkan pelindung di awal fungsi polling
+  if (!localStorage.getItem('sb-access-token') && !window._userData) {
+    console.log("Sync dibatalkan: User tidak login.");
+    return;
+  }
+  // ... sisa kode polling Anda ...
+}
