@@ -15,7 +15,36 @@ function _updateRoleBadge(role){ document.getElementById('role-badge')?.remove()
 
 function injectAuthPanel(){ const m=document.getElementById('sync-panel-mount'); if(!m) return; if(!isLoggedIn()){ m.innerHTML=`<button onclick="showAuthOverlay()">🔐 Masuk</button>`; return; } const r=getRole(); const u=getCurrentUser(); m.innerHTML=`<div><span>☁️ ${u?.email||''}</span> <span class="role-${r}">${r}</span></div><button onclick="loadAllData().then(()=>renderAll())">🔄 Refresh</button> <button onclick="doCloudLogout()">Keluar</button>`; }
 
-async function doCloudLogout(){ if(typeof logAudit==='function') await logAudit('logout',{}); await sbLogout(); applyRoleUI(); injectAuthPanel(); if(typeof renderAll==='function') renderAll(); if(typeof toast==='function') toast('Keluar dari cloud.','info'); showAuthOverlay(); }
+async function doCloudLogout(){
+  try {
+    // 1. Logout dari Supabase dulu
+    if(window._supa){ await window._supa.auth.signOut(); }
+    
+    // 2. Hapus semua cache lokal
+    localStorage.clear();
+    sessionStorage.clear();
+    
+    // 3. Hapus cookie Supabase
+    document.cookie.split(";").forEach(c=>{
+      document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires="+new Date(0).toUTCString()+";path=/");
+    });
+    
+    // 4. Tampilkan pesan
+    if(typeof showToast === 'function'){
+      showToast('Berhasil keluar dari cloud','success');
+    } else {
+      alert('Berhasil keluar dari cloud');
+    }
+    
+    // 5. Reload paksa dari server
+    setTimeout(()=>{ location.href = location.origin + location.pathname; }, 800);
+    
+  } catch(e){
+    console.error('Logout error:', e);
+    location.reload(true);
+  }
+}
+window.doCloudLogout = doCloudLogout;
 
 window.addEventListener('sb-ready',e=>{ if(e.detail.loggedIn){ applyRoleUI(); } else { showAuthOverlay(); } });
 window.addEventListener('sideva:page-changed',e=>{ if(e?.detail?.page==='backup') setTimeout(()=>injectAuthPanel(),50); });
