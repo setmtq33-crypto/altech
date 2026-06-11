@@ -5623,31 +5623,35 @@ window.addEventListener('sb-ready', () => setTimeout(tgFillForm, 200));
 <!-- <script src="mobile-camera-upload.js"></script> -->
   
 <script>
-    // Perbaikan logout - TIDAK perlu file login.html
-    if (typeof doCloudLogout === 'undefined') {
-        window.doCloudLogout = async function() {
-            console.log("Logout via doCloudLogout");
-            try {
-                if (typeof window.signOut === 'function') {
-                    await window.signOut();
-                } else if (typeof window.supabaseAuth?.signOut === 'function') {
-                    await window.supabaseAuth.signOut();
-                } else {
-                    console.warn("Tidak ada fungsi signOut, membersihkan storage lokal");
-                }
-            } catch(e) { console.error(e); }
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
-            sessionStorage.clear();
-            // LANGSUNG RELOAD INDEX, TIDAK PERLU login.html
-            window.location.href = 'index.html';
-        };
-    }
+    // Paksa logout - hapus semua data dan reload halaman
+    window.doCloudLogout = function() {
+        localStorage.clear();
+        sessionStorage.clear();
+        location.reload(); // reload index.html, tidak perlu halaman lain
+    };
     
-    document.getElementById('logout-btn')?.addEventListener('click', (e) => {
-        e.preventDefault();
-        doCloudLogout();
-    });
+    // Cari tombol logout dan pasang fungsi
+    setTimeout(function() {
+        var btn = document.getElementById('logout-btn');
+        if (btn) {
+            btn.onclick = function(e) {
+                e.preventDefault();
+                localStorage.clear();
+                sessionStorage.clear();
+                location.reload();
+            };
+        }
+        // Juga cari tombol dengan atribut onclick="doCloudLogout()"
+        var oldBtn = document.querySelector('[onclick="doCloudLogout()"]');
+        if (oldBtn) {
+            oldBtn.onclick = function(e) {
+                e.preventDefault();
+                localStorage.clear();
+                sessionStorage.clear();
+                location.reload();
+            };
+        }
+    }, 100);
 </script>
 
 
