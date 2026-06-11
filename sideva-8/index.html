@@ -302,8 +302,7 @@ body, .main, #page-dashboard { overflow-x: hidden; }
 
     <!-- Footer sidebar -->
     <div class="sidebar-footer">
-      <button class="nav-item sidebar-logout" onclick="doCloudLogout()" title="Keluar dari aplikasi">
-        <span class="icon">🚪</span> Log out
+      <button id="logout-btn" style="background:#d33; color:white; border:none; padding:8px 16px; border-radius:6px;">Keluar</button>
       </button>
       <div class="sidebar-status"><span class="status-dot"></span> Data tersimpan Database Supabase</div>
       <div id="auto-backup-status">💾 Auto backup: belum aktif</div>
