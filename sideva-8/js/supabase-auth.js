@@ -17,31 +17,41 @@ function injectAuthPanel(){ const m=document.getElementById('sync-panel-mount');
 
 async function doCloudLogout(){
   try {
-    // 1. Logout dari Supabase dulu
-    if(window._supa){ await window._supa.auth.signOut(); }
+    // 1. Matikan polling data agar tidak ada request baru saat logout
+    if(typeof _stopPolling === 'function') _stopPolling();
+
+    // 2. Logout dari Supabase Auth
+    if(window._supa){ 
+      await window._supa.auth.signOut(); 
+    }
     
-    // 2. Hapus semua cache lokal
+    // 3. Bersihkan Storage
     localStorage.clear();
     sessionStorage.clear();
     
-    // 3. Hapus cookie Supabase
-    document.cookie.split(";").forEach(c=>{
-      document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires="+new Date(0).toUTCString()+";path=/");
-    });
-    
-    // 4. Tampilkan pesan
-    if(typeof showToast === 'function'){
-      showToast('Berhasil keluar dari cloud','success');
-    } else {
-      alert('Berhasil keluar dari cloud');
+    // 4. Bersihkan Cookie dengan cakupan lebih luas
+    const cookies = document.cookie.split(";");
+    for (let i = 0; i < cookies.length; i++) {
+      const cookie = cookies[i];
+      const eqPos = cookie.indexOf("=");
+      const name = eqPos > -1 ? cookie.substr(0, eqPos) : cookie;
+      // Hapus untuk path root dan domain saat ini
+      document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
+      document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=" + window.location.hostname;
     }
     
-    // 5. Reload paksa dari server
-    setTimeout(()=>{ location.href = location.origin + location.pathname; }, 800);
+    if(typeof toast === 'function') toast('Berhasil keluar', 'success');
+
+    // 5. Hard Reset: Gunakan replace untuk mencegah user klik "Back" kembali ke sesi lama
+    setTimeout(() => {
+      window.location.replace(window.location.origin + window.location.pathname + '?loggedout=' + Date.now());
+    }, 500);
     
-  } catch(e){
+  } catch(e) {
     console.error('Logout error:', e);
-    location.reload(true);
+    // Jika gagal, paksa bersihkan storage dan reload
+    localStorage.clear();
+    window.location.reload(true);
   }
 }
 window.doCloudLogout = doCloudLogout;
