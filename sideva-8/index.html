@@ -5622,56 +5622,6 @@ window.addEventListener('sb-ready', () => setTimeout(tgFillForm, 200));
 <script src="js/audit-log.js"></script>
 <!-- <script src="mobile-camera-upload.js"></script> -->
   
-<!-- TOMBOL LOGOUT BARU - PASTI JALAN -->
-<div style="position: fixed; bottom: 20px; right: 20px; z-index: 9999;">
-    <button id="tombol-logout-baru" style="background-color: red; color: white; border: none; padding: 12px 24px; border-radius: 30px; font-size: 16px; font-weight: bold; cursor: pointer; box-shadow: 0 2px 10px rgba(0,0,0,0.3);">
-        🚪 LOGOUT (Pasti Jalan)
-    </button>
-</div>
-
-<script>
-    // !!! SCRIPT DARURAT LOGOUT - PASTI BERHASIL !!!
-
-    // Matikan semua fungsi logout palsu yang mungkin ada
-    window.doCloudLogout = function() {
-        // Hapus semua data yang tersimpan di browser
-        localStorage.clear();
-        sessionStorage.clear();
-
-        // Opsional: Hapus cookies juga biar bersih
-        document.cookie.split(";").forEach(function(c) { 
-            document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); 
-        });
-
-        // Tampilkan pesan (bisa dihapus kalau tidak suka)
-        alert("Sesi Anda telah dihapus. Halaman akan dimuat ulang.");
-
-        // Reload halaman dari server (bukan dari cache)
-        window.location.reload(true);
-    };
-
-    // Cari tombol "Keluar" (bisa pakai ID, class, atau atribut lain)
-    // Ini akan otomatis menangani semua kemungkinan tombol keluar di halaman Anda
-    setTimeout(function() {
-        // Cari semua elemen yang kemungkinan adalah tombol keluar
-        var allElements = document.querySelectorAll('button, a, div, span');
-        for (var i = 0; i < allElements.length; i++) {
-            var el = allElements[i];
-            var teks = (el.innerText || el.textContent || '').toLowerCase();
-            // Cari kata "keluar" (bisa ditambah "logout" kalau diperlukan)
-            if (teks.includes('keluar')) {
-                // Hapus event listener lama (kalau ada)
-                var newEl = el.cloneNode(true);
-                el.parentNode.replaceChild(newEl, el);
-                // Pasang event listener baru
-                newEl.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    window.doCloudLogout();
-                });
-            }
-        }
-    }, 500); // Delay setengah detik untuk memastikan halaman sudah siap
-</script>
 
 
   
