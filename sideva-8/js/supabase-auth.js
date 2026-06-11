@@ -89,47 +89,39 @@ function injectAuthPanel(){
 /**
  * Fungsi Logout yang diperbaiki untuk memastikan semua session dihapus total
  */
+js
 async function doCloudLogout(){
   try {
-    // 1. Matikan background sync agar tidak ada request baru
     if(typeof _stopPolling === 'function') _stopPolling();
     
-    // 2. Logout dari Supabase dengan scope global
+    // 1. Logout & Paksa Revoke
     if(window._supa){ 
        await window._supa.auth.signOut({ scope: 'global' }); 
+       // KRITIKAL: Hapus referensi agar tidak bisa auto-recover
+       window._supa = null; 
     }
     
-    // 3. Bersihkan Storage
+    // 2. Bersihkan Storage secara paksa
     localStorage.clear();
     sessionStorage.clear();
     
-    // 4. Bersihkan Cookie (Termasuk token supabase yang tersisa)
-    const cookies = document.cookie.split(";");
-    for (let i = 0; i < cookies.length; i++) {
-        const cookie = cookies[i];
-        const eqPos = cookie.indexOf("=");
-        const name = eqPos > -1 ? cookie.substr(0, eqPos).trim() : cookie.trim();
-        document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
-        document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=" + window.location.hostname;
-    }
+    // 3. Bersihkan Cookie khusus Supabase secara spesifik
+    const supaCookies = ['sb-access-token', 'sb-refresh-token', 'supabase-auth-token'];
+    supaCookies.forEach(name => {
+      document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;`;
+      document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=${window.location.hostname}`;
+    });
 
-    // 5. Reset status UI lokal
+    // 4. Reset Flag Login
     window._userData = null;
     window._userRole = null;
     
-    if(typeof showToast === 'function'){
-      showToast('Berhasil keluar secara total','success');
-    } else if(typeof toast === 'function'){
-      toast('Berhasil keluar','success');
-    }
-    
-    // 6. Hard Reset ke halaman login dengan query bust untuk mencegah cache
-    setTimeout(() => { 
-        window.location.replace(window.location.origin + window.location.pathname + '?lo=' + Date.now()); 
-    }, 600);
+    // 5. Hard Redirect tanpa ampun
+    // Jangan gunakan window.location.origin + window.location.pathname saja
+    // Arahkan ke root dengan query string yang benar-benar baru
+    window.location.replace('/?logout_success=' + Date.now());
     
   } catch(e){
-    console.error('Logout error:', e);
     localStorage.clear();
     window.location.replace('/');
   }
