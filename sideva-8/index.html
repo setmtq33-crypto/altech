@@ -5622,36 +5622,48 @@ window.addEventListener('sb-ready', () => setTimeout(tgFillForm, 200));
 <script src="js/audit-log.js"></script>
 <!-- <script src="mobile-camera-upload.js"></script> -->
   
+<!-- TOMBOL LOGOUT BARU - PASTI JALAN -->
+<div style="position: fixed; bottom: 20px; right: 20px; z-index: 9999;">
+    <button id="tombol-logout-baru" style="background-color: red; color: white; border: none; padding: 12px 24px; border-radius: 30px; font-size: 16px; font-weight: bold; cursor: pointer; box-shadow: 0 2px 10px rgba(0,0,0,0.3);">
+        🚪 LOGOUT (Pasti Jalan)
+    </button>
+</div>
+
 <script>
-    // Paksa logout - hapus semua data dan reload halaman
-    window.doCloudLogout = function() {
+    // Fungsi logout yang super sederhana
+    function logoutSekarang() {
+        // Hapus semua data yang disimpan
         localStorage.clear();
         sessionStorage.clear();
-        location.reload(); // reload index.html, tidak perlu halaman lain
-    };
-    
-    // Cari tombol logout dan pasang fungsi
+        // Hapus cookie jika ada
+        document.cookie.split(";").forEach(function(c) { 
+            document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); 
+        });
+        // Paksa reload halaman
+        window.location.reload(true);
+    }
+
+    // Pasang event ke tombol baru
+    var tombolBaru = document.getElementById('tombol-logout-baru');
+    if (tombolBaru) {
+        tombolBaru.onclick = function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            logoutSekarang();
+        };
+    }
+
+    // Juga coba lumpuhkan semua tombol logout lama agar tidak ganggu
     setTimeout(function() {
-        var btn = document.getElementById('logout-btn');
-        if (btn) {
-            btn.onclick = function(e) {
-                e.preventDefault();
-                localStorage.clear();
-                sessionStorage.clear();
-                location.reload();
-            };
+        // Cari semua tombol yang kemungkinan tombol logout lama
+        var semuaTombol = document.querySelectorAll('button, a, div[onclick]');
+        for (var i = 0; i < semuaTombol.length; i++) {
+            var teks = semuaTombol[i].innerText || semuaTombol[i].textContent;
+            if (teks && (teks.toLowerCase().includes('logout') || teks.toLowerCase().includes('keluar') || teks.toLowerCase().includes('sign out'))) {
+                semuaTombol[i].style.display = 'none'; // sembunyikan
+            }
         }
-        // Juga cari tombol dengan atribut onclick="doCloudLogout()"
-        var oldBtn = document.querySelector('[onclick="doCloudLogout()"]');
-        if (oldBtn) {
-            oldBtn.onclick = function(e) {
-                e.preventDefault();
-                localStorage.clear();
-                sessionStorage.clear();
-                location.reload();
-            };
-        }
-    }, 100);
+    }, 500);
 </script>
 
 
