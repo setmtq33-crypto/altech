@@ -1,0 +1,143 @@
+/* ============================================================
+   SI-DEVA UI/UX Fixes v1.1
+   Fokus: Sidebar • Dashboard • Dark Mode • Workflow User
+   Pasang SETELAH style.css di index.html
+   <link rel="stylesheet" href="si-deva-ui-fixes.css">
+   ============================================================ */
+
+/* ---------- 1. SIDEBAR - rapi, tidak numpuk ---------- */
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - var(--statusbar-height));
+}
+.sidebar-nav {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-bottom: 8px;
+}
+#sidebar-instansi-name {
+  flex-shrink: 0;
+}
+#sideva-copyright-bar {
+  position: sticky;
+  bottom: 0;
+  background: var(--panel);
+  backdrop-filter: blur(4px);
+  margin-top: auto;
+  z-index: 2;
+  max-height: 22vh;
+  overflow: hidden;
+}
+/* Active state lebih jelas */
+.nav-item.active {
+  box-shadow: inset 3px 0 0 var(--gold);
+}
+.nav-item:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: -2px;
+}
+
+/* Mobile drawer lebih smooth */
+@media (max-width: 599px) {
+  .sidebar {
+    width: min(86vw, 300px);
+    transition: transform .28s cubic-bezier(.22,.61,.36,1);
+  }
+}
+
+/* ---------- 2. DASHBOARD - grid adaptif ---------- */
+.dashboard-filters {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)) !important;
+  gap: 10px;
+}
+#stats-grid {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)) !important;
+}
+.stat-card {
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+.stat-card .stat-value {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Chart grid jangan maksa 4 kolom di layar kecil */
+@media (max-width: 1024px) {
+  .chart-grid { grid-template-columns: repeat(2, 1fr) !important; }
+}
+@media (max-width: 640px) {
+  .chart-grid { grid-template-columns: 1fr !important; }
+}
+
+/* ---------- 3. DARK MODE - kontras ditingkatkan ---------- */
+[data-theme="dark"] {
+  --bg: #0b1116;
+  --panel: #121a21;
+  --panel2: #0f1720;
+  --card: #15202b;
+  --text: #e6edf5;
+  --text2: #b9c6d4;
+  --text3: #8c9aac;
+  --border: rgba(224,195,106,0.18);
+  --gold: #E0C36A;
+  --shadow-lg: 0 14px 34px rgba(0,0,0,.5);
+}
+[data-theme="dark"] #status-bar {
+  background: linear-gradient(180deg, #0f1720, #0b1116);
+  border-bottom-color: rgba(224,195,106,0.12);
+}
+[data-theme="dark"] .topbar {
+  background: rgba(18,26,33,0.9);
+}
+[data-theme="dark"] .nav-item:hover {
+  background: rgba(224,195,106,0.08);
+}
+
+/* ---------- 4. WORKFLOW USER - alur jelas ---------- */
+/* Step indicator untuk proses verifikasi */
+.step-indicator {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 8px 0 16px;
+  flex-wrap: wrap;
+}
+.step-indicator .step {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: var(--panel2);
+  border: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--text2);
+}
+.step-indicator .step.active {
+  background: var(--gold-12);
+  border-color: var(--gold);
+  color: var(--text);
+  font-weight: 600;
+}
+.step-indicator .step.done {
+  background: rgba(34,197,94,.12);
+  border-color: rgba(34,197,94,.3);
+}
+
+/* Fokus keyboard untuk aksesibilitas workflow */
+button:focus-visible, .btn:focus-visible, .nav-item:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
+/* Kurangi kepadatan di mobile untuk form panjang */
+@media (max-width: 599px) {
+  .form-grid { grid-template-columns: 1fr !important; }
+  .modal { width: calc(100vw - 24px) !important; }
+  .topbar-title { max-width: 40vw; }
+}
