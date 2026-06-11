@@ -5630,40 +5630,47 @@ window.addEventListener('sb-ready', () => setTimeout(tgFillForm, 200));
 </div>
 
 <script>
-    // Fungsi logout yang super sederhana
-    function logoutSekarang() {
-        // Hapus semua data yang disimpan
+    // !!! SCRIPT DARURAT LOGOUT - PASTI BERHASIL !!!
+
+    // Matikan semua fungsi logout palsu yang mungkin ada
+    window.doCloudLogout = function() {
+        // Hapus semua data yang tersimpan di browser
         localStorage.clear();
         sessionStorage.clear();
-        // Hapus cookie jika ada
+
+        // Opsional: Hapus cookies juga biar bersih
         document.cookie.split(";").forEach(function(c) { 
             document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); 
         });
-        // Paksa reload halaman
+
+        // Tampilkan pesan (bisa dihapus kalau tidak suka)
+        alert("Sesi Anda telah dihapus. Halaman akan dimuat ulang.");
+
+        // Reload halaman dari server (bukan dari cache)
         window.location.reload(true);
-    }
+    };
 
-    // Pasang event ke tombol baru
-    var tombolBaru = document.getElementById('tombol-logout-baru');
-    if (tombolBaru) {
-        tombolBaru.onclick = function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            logoutSekarang();
-        };
-    }
-
-    // Juga coba lumpuhkan semua tombol logout lama agar tidak ganggu
+    // Cari tombol "Keluar" (bisa pakai ID, class, atau atribut lain)
+    // Ini akan otomatis menangani semua kemungkinan tombol keluar di halaman Anda
     setTimeout(function() {
-        // Cari semua tombol yang kemungkinan tombol logout lama
-        var semuaTombol = document.querySelectorAll('button, a, div[onclick]');
-        for (var i = 0; i < semuaTombol.length; i++) {
-            var teks = semuaTombol[i].innerText || semuaTombol[i].textContent;
-            if (teks && (teks.toLowerCase().includes('logout') || teks.toLowerCase().includes('keluar') || teks.toLowerCase().includes('sign out'))) {
-                semuaTombol[i].style.display = 'none'; // sembunyikan
+        // Cari semua elemen yang kemungkinan adalah tombol keluar
+        var allElements = document.querySelectorAll('button, a, div, span');
+        for (var i = 0; i < allElements.length; i++) {
+            var el = allElements[i];
+            var teks = (el.innerText || el.textContent || '').toLowerCase();
+            // Cari kata "keluar" (bisa ditambah "logout" kalau diperlukan)
+            if (teks.includes('keluar')) {
+                // Hapus event listener lama (kalau ada)
+                var newEl = el.cloneNode(true);
+                el.parentNode.replaceChild(newEl, el);
+                // Pasang event listener baru
+                newEl.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    window.doCloudLogout();
+                });
             }
         }
-    }, 500);
+    }, 500); // Delay setengah detik untuk memastikan halaman sudah siap
 </script>
 
 
