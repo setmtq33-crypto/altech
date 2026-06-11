@@ -2,9 +2,9 @@
 // Performance Optimization for SI-DEVA
 // ============================================================
 (function() {
-  // 1. Cache fetch untuk data master (sudah di multi-opd-admin, tapi perkuat)
-  // 2. Lazy loading gambar
+  // 1. Lazy loading gambar menggunakan IntersectionObserver
   const images = document.querySelectorAll('img[data-src]');
+  
   if ('IntersectionObserver' in window) {
     const observer = new IntersectionObserver((entries) => {
       entries.forEach(entry => {
@@ -16,13 +16,20 @@
         }
       });
     });
+    
     images.forEach(img => observer.observe(img));
+  } else {
+    // Fallback untuk browser lama yang tidak mendukung IntersectionObserver
+    images.forEach(img => {
+      img.src = img.dataset.src;
+      img.removeAttribute('data-src');
+    });
   }
-  // 3. Hapus console.log yang tidak perlu di production
-  if (window.location.hostname !== 'localhost') {
-    const noop = () => {};
-    console.log = noop;
-    console.info = noop;
-    console.debug = noop;
-  }
+
+  /**
+   * CATATAN: 
+   * Bagian penimpaan console.log (console.log = noop) dihapus.
+   * Menimpa fungsi global console menyebabkan error pada internal 
+   * metrics reporter Chrome DevTools.
+   */
 })();
