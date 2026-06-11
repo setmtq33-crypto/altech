@@ -40,6 +40,7 @@ let _session = null;
 let _userRole = null;
 let _pollTimer = null;
 window._userOpdName = null;
+const SUPER_ADMIN_EMAILS = ['super_admin@sideva8.id'];
 
 async function sbFetch(path, method = 'GET', body = null, extra = {}, retries = 2) {
   const token = _session?.access_token;
@@ -136,11 +137,43 @@ async function sbRestoreSession() {
 }
 
 async function _loadRole() {
+  const user = _session?.user || {};
+  const userId = user.id || user.user_id || user.sub || user.uid || null;
+  const email = (user.email || '').trim().toLowerCase();
+  const applyRole = (row) => {
+    const role = String(row?.role || 'viewer').trim().toLowerCase().replace(/[\s-]+/g, '_');
+    _userRole = role || 'viewer';
+    window._userOpdName = row?.nama_opd || null;
+  };
+
   try {
-    const rows = await sbFetch(`/rest/v1/user_roles?user_id=eq.${_session.user.id}&select=role,nama_opd`, 'GET');
-    _userRole = rows?.[0]?.role || 'viewer';
-    window._userOpdName = rows?.[0]?.nama_opd || null;
-  } catch(_) { _userRole = 'viewer'; window._userOpdName = null; }
+    if (userId) {
+      const rows = await sbFetch(`/rest/v1/user_roles?user_id=eq.${encodeURIComponent(userId)}&select=role,nama_opd`, 'GET');
+      if (rows?.[0]) {
+        applyRole(rows[0]);
+        return;
+      }
+    }
+  } catch(_) {}
+
+  try {
+    if (email) {
+      const rows = await sbFetch(`/rest/v1/user_roles?email=eq.${encodeURIComponent(email)}&select=role,nama_opd`, 'GET');
+      if (rows?.[0]) {
+        applyRole(rows[0]);
+        return;
+      }
+    }
+  } catch(_) {}
+
+  if (SUPER_ADMIN_EMAILS.includes(email)) {
+    _userRole = 'super_admin';
+    window._userOpdName = null;
+    return;
+  }
+
+  _userRole = 'viewer';
+  window._userOpdName = null;
 }
 function getRole() { return _userRole; }
 function isSuperAdmin() { return _userRole === 'super_admin'; }
