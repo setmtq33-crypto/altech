@@ -5621,9 +5621,36 @@ window.addEventListener('sb-ready', () => setTimeout(tgFillForm, 200));
 
 <!-- AUDIT LOG & MOBILE -->
 <script src="js/audit-log.js"></script>
-<script src="mobile-camera-upload.js"></script>
+<!-- <script src="mobile-camera-upload.js"></script> -->
   
-
+<script>
+    // Perbaikan: definisikan doCloudLogout jika belum ada
+    if (typeof doCloudLogout === 'undefined') {
+        window.doCloudLogout = async function() {
+            console.log("Logout via doCloudLogout");
+            try {
+                // Coba panggil signOut dari modul auth
+                if (typeof window.signOut === 'function') {
+                    await window.signOut();
+                } else if (typeof window.supabaseAuth?.signOut === 'function') {
+                    await window.supabaseAuth.signOut();
+                } else {
+                    console.warn("Tidak ada fungsi signOut, membersihkan storage lokal");
+                }
+            } catch(e) { console.error(e); }
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            sessionStorage.clear();
+            window.location.href = 'login.html';
+        };
+    }
+    
+    // Jika ada tombol logout dengan ID 'logout-btn' (dari rekomendasi sebelumnya)
+    document.getElementById('logout-btn')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        doCloudLogout();
+    });
+</script>
 
 
 
