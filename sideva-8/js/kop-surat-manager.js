@@ -22,21 +22,33 @@ async function _getOpdId() {
 
 async function _uploadToStorage(file, path) {
   const token = await _getAccessToken();
+  console.log(
+    "has token?",
+    !!token,
+    "token prefix",
+    token ? token.slice(0, 10) : null
+  );
+
   if (!token) throw new Error('Belum login');
 
   const url = `${SUPABASE_URL}/storage/v1/object/${STORAGE_BUCKET}/${path}`;
+
   const res = await fetch(url, {
     method: 'PUT',
     headers: {
-      'apikey': SUPABASE_ANON_KEY,
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': file.type,
-      'x-upsert': 'true'
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${token}`,
+      "Content-Type": file.type,
+      "x-upsert": "true"
     },
     body: file
   });
 
-  if (!res.ok) throw new Error('Upload gagal: ' + res.status);
+  const text = await res.text();
+  console.log("upload status", res.status, "body", text);
+
+  if (!res.ok) throw new Error(`Upload gagal: ${res.status} - ${text}`);
+
   return `${SUPABASE_URL}/storage/v1/object/public/${STORAGE_BUCKET}/${path}`;
 }
 
