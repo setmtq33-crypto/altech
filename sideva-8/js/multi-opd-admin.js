@@ -358,11 +358,6 @@ window.editOpdConfig = async function(opdId) {
 };
 
 
-/**
- * Saves or updates the OPD configuration in the opd_config table
- * @param {string} opdId - The UUID of the OPD
- * @param {object} configData - The configuration object to save
- */
 async function saveOpdConfig(opdId, configData) {
   try {
     // Check if config already exists for this OPD
@@ -370,17 +365,15 @@ async function saveOpdConfig(opdId, configData) {
     
     let result;
     if (existing && existing.length > 0) {
-      // Update existing
+      // Update existing - removed updated_at
       result = await sbFetch(`/rest/v1/opd_config?opd_id=eq.${opdId}`, 'PATCH', {
-        data: configData,
-        updated_at: new Date().toISOString()
+        data: configData
       });
     } else {
-      // Insert new
+      // Insert new - removed created_at
       result = await sbFetch('/rest/v1/opd_config', 'POST', {
         opd_id: opdId,
-        data: configData,
-        created_at: new Date().toISOString()
+        data: configData
       });
     }
     
