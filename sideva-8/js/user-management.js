@@ -1,11 +1,13 @@
 // ============================================================
-//  SI-DEVA — Manajemen User v8.1 (Lengkap)
-//  Fitur: CRUD User, Auto-sync user_roles, & Penugasan OPD
+//  SI-DEVA — Manajemen User v8.2 (Lengkap & Final)
+//  Fitur: CRUD User, Penugasan OPD, & Sinkronisasi Tabel
 // ============================================================
 
 let _cachedMyOpdId = null;
 
-// HELPER: Ambil OPD milik user yang login
+/**
+ * HELPER: Ambil OPD milik user yang sedang login
+ */
 async function _getMyOpdId() {
   if (_cachedMyOpdId !== null) return _cachedMyOpdId;
   try {
@@ -22,7 +24,9 @@ async function _getMyOpdId() {
   }
 }
 
-// HELPER: Fungsi pendaftaran user ke Supabase Auth
+/**
+ * HELPER: Fungsi pendaftaran user ke Supabase Auth
+ */
 async function sbInviteUser(email, password, role, displayName) {
   return await sbFetch('/auth/v1/signup', 'POST', {
     email: email,
@@ -31,6 +35,9 @@ async function sbInviteUser(email, password, role, displayName) {
   });
 }
 
+/**
+ * Cek apakah user memiliki izin untuk menambah user baru
+ */
 async function _canAdminAddUser() {
   if (isSuperAdmin()) return true;
   const opdId = await _getMyOpdId();
@@ -38,6 +45,7 @@ async function _canAdminAddUser() {
 }
 
 // ========== RENDER HALAMAN UTAMA ==========
+
 async function renderManajemenUser() {
   const el = document.getElementById('um-content');
   if (!el) return;
@@ -58,8 +66,10 @@ async function renderManajemenUser() {
     let users = [];
 
     if (isSuper) {
+      // Super admin melihat semua user dari tabel user_roles
       users = await sbFetch('/rest/v1/user_roles?select=*&order=created_at.desc', 'GET');
     } else {
+      // Admin OPD hanya melihat user yang memiliki akses ke OPD yang sama
       const myOpdId = await _getMyOpdId();
       if (!myOpdId) {
         users = [];
@@ -76,7 +86,10 @@ async function renderManajemenUser() {
     }
 
     users = users || [];
-    if (!isSuper) users = users.filter(u => u.role !== 'super_admin');
+    // Sembunyikan role super_admin dari admin biasa
+    if (!isSuper) {
+      users = users.filter(u => u.role !== 'super_admin');
+    }
 
     window._umUsers = users;
     await _renderUserTable(el, users, isSuper);
@@ -113,6 +126,7 @@ async function _renderUserTable(el, users, isSuper) {
     const role = u.role || 'viewer';
     const userId = u.user_id || u.id;
     
+    // Cegah admin biasa mengedit sesama admin atau super admin
     const canManage = isSuper || (role !== 'admin' && role !== 'super_admin');
     const actionBtns = canManage ? `
       <button class="btn btn-secondary btn-sm" onclick="openEditUserModal('${userId}', '${escapeHtml(displayName)}', '${escapeHtml(email)}', '${role}')">✏️ Edit</button>
@@ -132,7 +146,8 @@ async function _renderUserTable(el, users, isSuper) {
   el.innerHTML = html;
 }
 
-// ========== TAMBAH USER ==========
+// ========== FITUR: TAMBAH USER ==========
+
 window.openAddUserModal = function() {
   const isSuper = isSuperAdmin();
   let roleOptions = isSuper ? `
@@ -173,12 +188,20 @@ window.submitAddUser = async function() {
   const errEl = document.getElementById('add-user-err');
   const btn = document.querySelector('#modal-add-user .btn-primary');
 
+  if (!email || !password) {
+    if (errEl) { errEl.textContent = 'Email dan password wajib diisi'; errEl.style.display = 'block'; }
+    return;
+  }
+
   try {
-    if (btn) btn.disabled = true;
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ Memproses...'; }
+    
+    // 1. Daftarkan ke Supabase Auth
     const result = await sbInviteUser(email, password, role, displayName);
     const newUserId = result.user?.id || result.id;
+    if (!newUserId) throw new Error('Gagal mendapatkan ID user baru');
 
-    // WAJIB: Masukkan ke user_roles agar muncul di tabel
+    // 2. Masukkan ke tabel user_roles agar muncul di daftar
     await sbFetch('/rest/v1/user_roles', 'POST', {
       user_id: newUserId,
       email: email,
@@ -186,27 +209,38 @@ window.submitAddUser = async function() {
       display_name: displayName || email.split('@')[0]
     });
 
-    // Otomatis OPD jika Admin OPD yang menambah
+    // 3. Jika Admin OPD yang menambah, otomatis beri akses ke OPD yang sama
     if (!isSuperAdmin()) {
       const myOpdId = await _getMyOpdId();
       if (myOpdId) {
-        await sbFetch('/rest/v1/user_opd_access', 'POST', { user_id: newUserId, opd_id: myOpdId });
+        await sbFetch('/rest/v1/user_opd_access', 'POST', { 
+          user_id: newUserId, 
+          opd_id: myOpdId 
+        });
       }
     }
 
     toast('User berhasil ditambahkan!', 'success');
     document.getElementById('modal-add-user')?.remove();
-    renderManajemenUser();
+    renderManajemenUser(); // Refresh tabel
+
   } catch (err) {
-    if (errEl) { errEl.textContent = err.message; errEl.style.display = 'block'; }
-    if (btn) btn.disabled = false;
+    console.error('Submit error:', err);
+    if (errEl) {
+      errEl.textContent = err.message || 'Terjadi kesalahan saat menyimpan';
+      errEl.style.display = 'block';
+    }
+    if (btn) { btn.disabled = false; btn.textContent = '✅ Simpan'; }
   }
 };
 
-// ========== EDIT AKSES OPD ==========
+// ========== FITUR: EDIT AKSES OPD ==========
+
 window.openEditUserModal = async function(userId, name, email, role) {
   try {
+    // Ambil daftar semua OPD untuk dropdown
     const opds = await sbFetch('/rest/v1/opd?select=id,nama_opd&order=nama_opd', 'GET');
+    // Ambil akses OPD user saat ini
     const currentAccess = await sbFetch(`/rest/v1/user_opd_access?user_id=eq.${userId}&select=opd_id`, 'GET');
     const currentOpdId = currentAccess?.[0]?.opd_id;
 
@@ -218,82 +252,72 @@ window.openEditUserModal = async function(userId, name, email, role) {
         <div style="font-weight:700;margin-bottom:15px;">✏️ Edit Akses OPD</div>
         <div style="font-size:13px;margin-bottom:15px;">User: <strong>${name}</strong></div>
         <select id="edit-user-opd" class="form-control">
-          <option value="">-- Tanpa OPD --</option>
+          <option value="">-- Tanpa OPD / Cabut Akses --</option>
           ${opds.map(o => `<option value="${o.id}" ${o.id == currentOpdId ? 'selected' : ''}>${o.nama_opd}</option>`).join('')}
         </select>
         <div style="display:flex;gap:10px;margin-top:20px;">
-          <button class="btn btn-primary" style="flex:1;" onclick="submitEditUser('${userId}')">💾 Simpan</button>
+          <button class="btn btn-primary" style="flex:1;" onclick="submitEditUser('${userId}')">💾 Simpan Perubahan</button>
           <button class="btn btn-secondary" onclick="this.closest('#modal-edit-user').remove()">Batal</button>
         </div>
       </div>
     `;
     document.body.appendChild(modal);
-  } catch(e) { toast('Gagal memuat data OPD', 'error'); }
+  } catch(e) {
+    toast('Gagal memuat data OPD', 'error');
+  }
 };
 
 window.submitEditUser = async function(userId) {
   const opdId = document.getElementById('edit-user-opd').value;
   try {
+    // Hapus akses lama terlebih dahulu
     await sbFetch(`/rest/v1/user_opd_access?user_id=eq.${userId}`, 'DELETE');
+    
+    // Jika OPD dipilih, masukkan data akses baru
     if (opdId) {
-      await sbFetch('/rest/v1/user_opd_access', 'POST', { user_id: userId, opd_id: opdId });
+      await sbFetch('/rest/v1/user_opd_access', 'POST', { 
+        user_id: userId, 
+        opd_id: opdId 
+      });
     }
-    toast('Akses OPD diperbarui', 'success');
-    document.getElementById('modal-edit-user').remove();
-    renderManajemenUser();
-  } catch(e) { toast('Gagal update akses', 'error'); }
-};
-
-// ========== HAPUS USER ==========
-window.deleteUserConfirm = async function(userId, name) {
-  if (!confirm(`Hapus user ${name}? Ini juga akan menghapus akses OPD-nya.`)) return;
-  try {
-    await sbFetch(`/rest/v1/user_roles?user_id=eq.${userId}`, 'DELETE');
-    await sbFetch(`/rest/v1/user_opd_access?user_id=eq.${userId}`, 'DELETE');
-    toast('User berhasil dihapus dari daftar manajemen', 'success');
-    renderManajemenUser();
-  } catch(e) { toast('Gagal menghapus user', 'error'); }
-};
-
-window.openEditUserModal = async function(userId, name, email, role) {
-  try {
-    // Ambil daftar semua OPD
-    const opds = await sbFetch('/rest/v1/opd?select=id,nama_opd&order=nama_opd', 'GET');
-    // Ambil akses OPD saat ini
-    const current = await sbFetch(`/rest/v1/user_opd_access?user_id=eq.${userId}&select=opd_id`, 'GET');
-    const currentOpdId = current?.[0]?.opd_id;
-
-    const modal = document.createElement('div');
-    modal.id = 'modal-edit-user';
-    modal.style.cssText = 'position:fixed;inset:0;z-index:10001;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;';
-    modal.innerHTML = `
-      <div style="background:var(--surface);border-radius:12px;padding:28px;width:100%;max-width:400px;">
-        <div style="font-weight:700;margin-bottom:15px;">✏️ Edit Akses OPD</div>
-        <div style="font-size:13px;margin-bottom:10px;">User: <strong>${name}</strong></div>
-        <select id="edit-user-opd" class="form-control">
-          <option value="">-- Pilih OPD --</option>
-          ${opds.map(o => `<option value="${o.id}" ${o.id == currentOpdId ? 'selected' : ''}>${o.nama_opd}</option>`).join('')}
-        </select>
-        <div style="display:flex;gap:10px;margin-top:20px;">
-          <button class="btn btn-primary" style="flex:1;" onclick="submitEditUser('${userId}')">💾 Simpan</button>
-          <button class="btn btn-secondary" onclick="this.closest('#modal-edit-user').remove()">Batal</button>
-        </div>
-      </div>
-    `;
-    document.body.appendChild(modal);
-  } catch(e) { toast('Gagal memuat data', 'error'); }
-};
-
-window.submitEditUser = async function(userId) {
-  const opdId = document.getElementById('edit-user-opd').value;
-  try {
-    // Hapus akses lama dan tambah yang baru
-    await sbFetch(`/rest/v1/user_opd_access?user_id=eq.${userId}`, 'DELETE');
-    if (opdId) {
-      await sbFetch('/rest/v1/user_opd_access', 'POST', { user_id: userId, opd_id: opdId });
-    }
+    
     toast('Akses OPD berhasil diperbarui', 'success');
     document.getElementById('modal-edit-user').remove();
-    renderManajemenUser();
-  } catch(e) { toast('Gagal menyimpan', 'error'); }
+    renderManajemenUser(); // Refresh tabel
+  } catch(e) {
+    toast('Gagal mengupdate akses OPD', 'error');
+  }
 };
+
+// ========== FITUR: HAPUS USER ==========
+
+window.deleteUserConfirm = async function(userId, name) {
+  if (!confirm(`Hapus user "${name}"?\nTindakan ini akan menghapus akses dan perannya dari daftar manajemen.`)) return;
+  
+  try {
+    // Hapus dari tabel user_roles dan user_opd_access
+    await sbFetch(`/rest/v1/user_roles?user_id=eq.${userId}`, 'DELETE');
+    await sbFetch(`/rest/v1/user_opd_access?user_id=eq.${userId}`, 'DELETE');
+    
+    toast('User berhasil dihapus dari daftar', 'success');
+    renderManajemenUser();
+  } catch(e) {
+    console.error('Delete error:', e);
+    toast('Gagal menghapus user', 'error');
+  }
+};
+
+/**
+ * Helper untuk mencegah XSS (Security)
+ */
+function escapeHtml(text) {
+  if (!text) return '';
+  const map = {
+    '&': '&',
+    '<': '<',
+    '>': '>',
+    '"': '"',
+    "'": '&#039;'
+  };
+  return text.replace(/[&<>"']/g, m => map[m]);
+}
