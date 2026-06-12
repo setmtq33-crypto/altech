@@ -7,20 +7,6 @@
 // ========== HELPER: Ambil OPD milik user yang login ==========
 let _cachedMyOpdId = null;
 
-// Tambahkan ini di bagian atas file (misal setelah baris 7)
-async function sbInviteUser(email, password, role, displayName) {
-  // Menggunakan sbFetch yang sudah ada di kode Anda untuk mendaftarkan user
-  // Sesuaikan endpoint '/auth/v1/signup' dengan konfigurasi API Anda
-  return await sbFetch('/auth/v1/signup', 'POST', {
-    email: email,
-    password: password,
-    data: { 
-      role: role, 
-      display_name: displayName 
-    }
-  });
-}
-
 async function _getMyOpdId() {
   if (_cachedMyOpdId !== null) return _cachedMyOpdId;
   try {
@@ -29,12 +15,24 @@ async function _getMyOpdId() {
     if (!myId) return null;
     const rows = await sbFetch(`/rest/v1/user_opd_access?user_id=eq.${myId}&select=opd_id`, 'GET');
     if (!rows || rows.length === 0) return null;
-    _cachedMyOpdId = rows[0].opd_id; // asumsi admin hanya punya 1 OPD
+    _cachedMyOpdId = rows[0].opd_id; 
     return _cachedMyOpdId;
   } catch(e) {
     console.warn('_getMyOpdId error:', e);
     return null;
   }
+}
+
+// Helper: Fungsi Invite User (Dibutuhkan oleh submitAddUser)
+async function sbInviteUser(email, password, role, displayName) {
+  return await sbFetch('/auth/v1/signup', 'POST', {
+    email: email,
+    password: password,
+    data: { 
+      role: role, 
+      display_name: displayName 
+    }
+  });
 }
 
 // Cek apakah admin biasa (non-super) boleh menambah user
@@ -65,10 +63,8 @@ async function renderManajemenUser() {
     let users = [];
 
     if (isSuper) {
-      // Super admin: semua user
       users = await sbFetch('/rest/v1/user_roles?select=*&order=created_at.desc', 'GET');
     } else {
-      // Admin biasa: ambil user yang memiliki akses ke OPD yang sama
       const myOpdId = await _getMyOpdId();
       if (!myOpdId) {
         users = [];
@@ -85,8 +81,6 @@ async function renderManajemenUser() {
     }
 
     users = users || [];
-    
-    // Sembunyikan akun super_admin dari admin biasa (non-super)
     if (!isSuper) {
       users = users.filter(u => u.role !== 'super_admin');
     }
@@ -138,7 +132,6 @@ async function _renderUserTable(el, users, isSuper) {
     const role = u.role || 'viewer';
     const userId = u.user_id || u.id;
     
-    // Admin biasa tidak bisa mengelola user dengan role admin atau super_admin
     const canManage = isSuper || (role !== 'admin' && role !== 'super_admin');
     const actionBtns = canManage ? `
       <button class="btn btn-secondary btn-sm" onclick="openEditUserModal('${userId}', '${escapeHtml(displayName)}', '${escapeHtml(email)}', '${role}')">✏️ Edit</button>
@@ -158,7 +151,7 @@ async function _renderUserTable(el, users, isSuper) {
   el.innerHTML = html;
 }
 
-// ========== TAMBAH USER (dengan akses OPD otomatis untuk admin biasa) ==========
+// ========== TAMBAH USER ==========
 window.openAddUserModal = function() {
   const isSuper = isSuperAdmin();
   if (!isSuper && !_cachedMyOpdId) {
@@ -166,20 +159,15 @@ window.openAddUserModal = function() {
     return;
   }
 
-  let roleOptions = '';
-  if (isSuper) {
-    roleOptions = `
-      <option value="viewer">Viewer (hanya lihat)</option>
-      <option value="operator">Operator (input/edit)</option>
-      <option value="admin">Admin (kelola data OPD sendiri)</option>
-      <option value="super_admin">Super Admin (penuh)</option>
-    `;
-  } else {
-    roleOptions = `
-      <option value="viewer">Viewer (hanya lihat)</option>
-      <option value="operator">Operator (input/edit)</option>
-    `;
-  }
+  let roleOptions = isSuper ? `
+    <option value="viewer">Viewer (hanya lihat)</option>
+    <option value="operator">Operator (input/edit)</option>
+    <option value="admin">Admin (kelola data OPD sendiri)</option>
+    <option value="super_admin">Super Admin (penuh)</option>
+  ` : `
+    <option value="viewer">Viewer (hanya lihat)</option>
+    <option value="operator">Operator (input/edit)</option>
+  `;
 
   const modal = document.createElement('div');
   modal.id = 'modal-add-user';
@@ -197,9 +185,7 @@ window.openAddUserModal = function() {
       </div>
       <div style="margin-bottom:12px;">
         <label style="display:block;font-size:12px;color:var(--text3);margin-bottom:4px;">Role *</label>
-        <select id="add-user-role" class="form-control">
-          ${roleOptions}
-        </select>
+        <select id="add-user-role" class="form-control">${roleOptions}</select>
       </div>
       <div style="margin-bottom:12px;">
         <label style="display:block;font-size:12px;color:var(--text3);margin-bottom:4px;">Nama Tampilan (opsional)</label>
@@ -222,6 +208,7 @@ window.submitAddUser = async function() {
   const role = document.getElementById('add-user-role')?.value;
   const displayName = document.getElementById('add-user-display')?.value.trim();
   const errEl = document.getElementById('add-user-err');
+  const btn = document.querySelector('#modal-add-user .btn-primary');
   
   if (!email || !password) {
     errEl.textContent = 'Email dan password wajib diisi';
@@ -233,13 +220,11 @@ window.submitAddUser = async function() {
     errEl.style.display = 'block';
     return;
   }
+  
   errEl.style.display = 'none';
-
-  const btn = document.querySelector('#modal-add-user .btn-primary');
   if (btn) { btn.disabled = true; btn.textContent = '⏳ Memproses...'; }
 
   try {
-    // Memanggil fungsi helper yang ditambahkan di atas
     const result = await sbInviteUser(email, password, role, displayName);
     const newUserId = result.user?.id || result.id;
     if (!newUserId) throw new Error('Gagal mendapatkan ID user baru');
@@ -256,145 +241,21 @@ window.submitAddUser = async function() {
       }
     }
 
-    try {
-      if (typeof logAudit === 'function') {
-        const myOpdId = isSuper ? null : await _getMyOpdId();
-        logAudit('user_added', { role, opd_id: myOpdId, email }, newUserId, email);
-      }
-    } catch(e) {}
+    if (typeof logAudit === 'function') {
+      const myOpdId = isSuper ? null : await _getMyOpdId();
+      logAudit('user_added', { role, opd_id: myOpdId, email }, newUserId, email);
+    }
 
     toast('User berhasil ditambahkan!', 'success');
     document.getElementById('modal-add-user')?.remove();
     renderManajemenUser();
-    
+
   } catch (err) {
     console.error(err);
     if (errEl) {
       errEl.textContent = err.message || 'Gagal menambah user';
       errEl.style.display = 'block';
     }
-    if (btn) { 
-      btn.disabled = false; 
-      btn.textContent = '✅ Simpan'; 
-    }
+    if (btn) { btn.disabled = false; btn.textContent = '✅ Simpan'; }
   }
 };
-
-// ========== EDIT USER (hanya super admin) ==========
-window.openEditUserModal = function(userId, displayName, email, currentRole) {
-  if (!isSuperAdmin()) {
-    toast('Hanya Super Admin yang dapat mengedit user', 'error');
-    return;
-  }
-  const modal = document.createElement('div');
-  modal.id = 'modal-edit-user';
-  modal.style.cssText = 'position:fixed;inset:0;z-index:10001;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;';
-  modal.innerHTML = `
-    <div style="background:var(--surface);border-radius:12px;padding:28px;width:100%;max-width:400px;">
-      <div style="font-size:16px;font-weight:700;margin-bottom:20px;">✏️ Edit User</div>
-      <div style="margin-bottom:12px;">
-        <label style="display:block;font-size:12px;color:var(--text3);margin-bottom:4px;">Email</label>
-        <input type="email" id="edit-user-email" class="form-control" value="${escapeHtml(email)}" readonly disabled style="background:var(--surface3);">
-      </div>
-      <div style="margin-bottom:12px;">
-        <label style="display:block;font-size:12px;color:var(--text3);margin-bottom:4px;">Nama Tampilan</label>
-        <input type="text" id="edit-user-display" class="form-control" value="${escapeHtml(displayName)}">
-      </div>
-      <div style="margin-bottom:12px;">
-        <label style="display:block;font-size:12px;color:var(--text3);margin-bottom:4px;">Role</label>
-        <select id="edit-user-role" class="form-control">
-          <option value="viewer" ${currentRole === 'viewer' ? 'selected' : ''}>Viewer</option>
-          <option value="operator" ${currentRole === 'operator' ? 'selected' : ''}>Operator</option>
-          <option value="admin" ${currentRole === 'admin' ? 'selected' : ''}>Admin</option>
-          <option value="super_admin" ${currentRole === 'super_admin' ? 'selected' : ''}>Super Admin</option>
-        </select>
-      </div>
-      <div id="edit-user-err" style="color:#ef4444;font-size:12px;margin-bottom:10px;display:none;"></div>
-      <div style="display:flex;gap:10px;margin-top:20px;">
-        <button class="btn btn-primary" style="flex:1;" onclick="submitEditUser('${userId}')">💾 Simpan</button>
-        <button class="btn btn-secondary" onclick="this.closest('#modal-edit-user').remove()">Batal</button>
-      </div>
-    </div>
-  `;
-  document.body.appendChild(modal);
-};
-
-window.submitEditUser = async function(userId) {
-  const newRole = document.getElementById('edit-user-role')?.value;
-  const newDisplay = document.getElementById('edit-user-display')?.value.trim();
-  const errEl = document.getElementById('edit-user-err');
-  errEl.style.display = 'none';
-  try {
-    const payload = { role: newRole };
-    if (newDisplay) payload.display_name = newDisplay;
-    await sbFetch(`/rest/v1/user_roles?user_id=eq.${userId}`, 'PATCH', payload);
-    toast('User berhasil diperbarui', 'success');
-    document.getElementById('modal-edit-user')?.remove();
-    renderManajemenUser();
-    _cachedMyOpdId = null;
-  } catch(e) {
-    errEl.textContent = 'Gagal: ' + e.message;
-    errEl.style.display = 'block';
-  }
-};
-
-// ========== HAPUS USER ==========
-function deleteUserConfirm(userId, displayName) {
-  if (!isSuperAdmin()) {
-    toast('Hanya Super Admin yang dapat menghapus user', 'error');
-    return;
-  }
-  if (!confirm(`⚠️ Yakin hapus user "${displayName}"? Tindakan ini tidak bisa dibatalkan.`)) return;
-  deleteUser(userId, displayName);
-}
-
-async function deleteUser(userId, displayName) {
-  try {
-    await sbFetch(`/rest/v1/user_roles?user_id=eq.${userId}`, 'DELETE');
-    await sbFetch(`/rest/v1/user_opd_access?user_id=eq.${userId}`, 'DELETE');
-    toast(`User ${displayName} berhasil dihapus`, 'success');
-    renderManajemenUser();
-    _cachedMyOpdId = null;
-  } catch (err) {
-    console.error(err);
-    toast('Gagal hapus user: ' + err.message, 'error');
-  }
-}
-
-// ========== INJECT MENU SIDEBAR ==========
-function _injectNavUser() {
-  if (document.getElementById('nav-manajemen-user')) return;
-  if (typeof isAdmin !== 'function' || !isAdmin()) return;
-  const anchor = document.querySelector('.nav-item[onclick*="pengaturan"]') || document.querySelector('.nav-item[onclick*="backup"]');
-  const li = document.createElement('div');
-  li.id = 'nav-manajemen-user';
-  li.className = 'nav-item admin-only';
-  li.setAttribute('onclick', "showPage('manajemen-user')");
-  li.innerHTML = '<span class="nav-icon">👥</span><span class="nav-label">Manajemen User</span>';
-  if (anchor) anchor.before(li);
-  if (!document.getElementById('page-manajemen-user')) {
-    const p = document.createElement('div');
-    p.id = 'page-manajemen-user';
-    p.className = 'page';
-    p.innerHTML = '<div id="um-content"></div>';
-    const anyPage = document.querySelector('.page');
-    if (anyPage) anyPage.parentNode.appendChild(p);
-  }
-}
-
-// ========== EVENT LISTENERS ==========
-window.addEventListener('sideva:page-changed', (e) => {
-  if (e?.detail?.page === 'manajemen-user') renderManajemenUser();
-});
-window.addEventListener('sb-ready', () => setTimeout(_injectNavUser, 700));
-setTimeout(() => { if (typeof isAdmin === 'function' && isAdmin()) _injectNavUser(); }, 1500);
-
-// ========== UTILITIES ==========
-function escapeHtml(s) {
-  return String(s || '').replace(/[&<>]/g, function(m) {
-    if (m === '&') return '&amp;';
-    if (m === '<') return '&lt;';
-    if (m === '>') return '&gt;';
-    return m;
-  });
-}
