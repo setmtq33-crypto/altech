@@ -7,61 +7,111 @@ const STORAGE_BUCKET = 'sideva-assets';
 // ================== HELPERS ==================
 async function _getOpdId() {
 
-  const candidates = [
-
-    window._currentOpdId,
-
-    window.currentOpdId,
-
-    localStorage.getItem('sideva_current_opd_id'),
-
-    localStorage.getItem('currentOpdId')
-
-  ];
-
-  for (const v of candidates) {
-
-    if (v && String(v).trim() !== '') {
-
-      return String(v);
-
-    }
-
-  }
+  if (window._currentOpdId) return window._currentOpdId;
 
   try {
 
-    const session = JSON.parse(
+    const session =
 
-      localStorage.getItem('sideva_session_v3') || '{}'
-
-    );
+      JSON.parse(localStorage.getItem('sideva_session_v3') || '{}');
 
     const user = session.user || {};
 
-    const meta = user.user_metadata || {};
+    const candidates = [
 
-    const appMeta = user.app_metadata || {};
+      user.opd_id,
 
-    return (
+      user.opdId,
 
-      meta.opd_id ||
+      user.user_metadata?.opd_id,
 
-      meta.opdId ||
+      user.user_metadata?.opdId,
 
-      appMeta.opd_id ||
+      user.app_metadata?.opd_id,
 
-      appMeta.opdId ||
+      user.app_metadata?.opdId,
 
-      user.opd_id ||
+      localStorage.getItem('sideva_current_opd_id'),
 
-      user.opdId ||
+      localStorage.getItem('currentOpdId')
 
-      null
+    ];
+
+    for (const v of candidates) {
+
+      if (v) {
+
+        window._currentOpdId = v;
+
+        return v;
+
+      }
+
+    }
+
+    const email = user.email;
+
+    if (!email || typeof sbFetch !== 'function') {
+
+      return null;
+
+    }
+
+    const roleRows = await sbFetch(
+
+      `/rest/v1/user_roles?email=eq.${encodeURIComponent(email)}&select=*`,
+
+      'GET'
 
     );
 
-  } catch (e) {
+    const roleRow = roleRows?.[0];
+
+    const userId =
+
+      roleRow?.user_id ||
+
+      user.id;
+
+    if (!userId) {
+
+      return null;
+
+    }
+
+    const accessRows = await sbFetch(
+
+      `/rest/v1/user_opd_access?user_id=eq.${encodeURIComponent(userId)}&select=*`,
+
+      'GET'
+
+    );
+
+    const access = accessRows?.[0];
+
+    const opdId =
+
+      access?.opd_id ||
+
+      access?.opdId ||
+
+      access?.id_opd;
+
+    if (opdId) {
+
+      window._currentOpdId = opdId;
+
+      localStorage.setItem('sideva_current_opd_id', opdId);
+
+      return opdId;
+
+    }
+
+    return null;
+
+  } catch (err) {
+
+    console.error(err);
 
     return null;
 
