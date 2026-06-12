@@ -1,33 +1,31 @@
 // ============================================================
-//  SI-DEVA — Kop Surat & Logo Manager v8.0 (Final Clean)
+//  SI-DEVA — Kop Surat & Logo Manager v8.1 (Fixed Clean)
 // ============================================================
 
 const STORAGE_BUCKET = 'sideva-assets';
 
+// ================== HELPERS ==================
 async function _getOpdId() {
-  // 1. Cek variabel global atau localStorage
   let id = window._currentOpdId || localStorage.getItem('sideva_current_opd_id');
-  
-  // 2. Jika masih kosong, coba ambil dari data session user login
+
   if (!id) {
     const sessionStr = localStorage.getItem('sideva_session_v3');
     if (sessionStr) {
       const session = JSON.parse(sessionStr);
-      // Ambil opd_id dari profile user
       id = session.user?.user_metadata?.opd_id || session.user?.opd_id;
     }
   }
-  return id;
+
+  return id || null;
+}
+
+async function _getAccessToken() {
+  const session = JSON.parse(localStorage.getItem('sideva_session_v3') || '{}');
+  return session.access_token || null;
 }
 
 async function _uploadToStorage(file, path) {
   const token = await _getAccessToken();
-  console.log(
-    "has token?",
-    !!token,
-    "token prefix",
-    token ? token.slice(0, 10) : null
-  );
 
   if (!token) throw new Error('Belum login');
 
@@ -39,26 +37,37 @@ async function _uploadToStorage(file, path) {
       apikey: SUPABASE_ANON_KEY,
       Authorization: `Bearer ${token}`,
       "Content-Type": file.type,
-      "x-upsert": "true"
+      "x-upsert": "true",
     },
-    body: file
+    body: file,
   });
 
   const text = await res.text();
+
+  // (Opsional) log untuk debugging
   console.log("upload status", res.status, "body", text);
 
-  if (!res.ok) throw new Error(`Upload gagal: ${res.status} - ${text}`);
+  if (!res.ok) {
+    throw new Error(`Upload gagal: ${res.status} - ${text}`);
+  }
 
   return `${SUPABASE_URL}/storage/v1/object/public/${STORAGE_BUCKET}/${path}`;
 }
 
-async function _getAccessToken() {
-  const session = JSON.parse(localStorage.getItem('sideva_session_v3') || '{}');
-  return session.access_token || null;
+// ================== KOP SURAT ==================
+function _fallbackKop() {
+  const cfg = window.appConfig || {};
+  const namaPem = ('PEMERINTAH ' + (cfg.kabupaten || '')).toUpperCase();
+  const namaInst = (cfg.namaInstansi || 'INSTANSI PEMERINTAH').toUpperCase();
+
+  return `<div style="margin-bottom:16px;text-align:center;border-bottom:3px double #000;padding-bottom:8px;">
+    <strong style="font-size:16px;">${namaPem}</strong><br>
+    <strong style="font-size:18px;">${namaInst}</strong><br>
+    <span style="font-size:12px;">${cfg.alamat || ''} ${cfg.telepon ? '• Telp. ' + cfg.telepon : ''}</span>
+  </div>`;
 }
 
-// ================== KOP SURAT ==================
-window.kopSurat = async function() {
+window.kopSurat = async function () {
   const opdId = await _getOpdId();
   if (!opdId) return _fallbackKop();
 
@@ -66,8 +75,10 @@ window.kopSurat = async function() {
   let kopUrl = null;
   try {
     const cfg = await getOpdConfig(opdId);
-    kopUrl = cfg?._kopSuratImg;
-  } catch(e) {}
+    kopUrl = cfg?._kopSuratImg ?? null;
+  } catch (e) {
+    // ignore, fallback localStorage
+  }
 
   // Fallback localStorage
   if (!kopUrl) kopUrl = localStorage.getItem('sideva_kop_surat_img');
@@ -81,88 +92,84 @@ window.kopSurat = async function() {
   return _fallbackKop();
 };
 
-function _fallbackKop() {
-  const cfg = window.appConfig || {};
-  const namaPem = ('PEMERINTAH ' + (cfg.kabupaten || '')).toUpperCase();
-  const namaInst = (cfg.namaInstansi || 'INSTANSI PEMERINTAH').toUpperCase();
-
-  return `<div style="margin-bottom:16px;text-align:center;border-bottom:3px double #000;padding-bottom:8px;">
-    <strong style="font-size:16px;">${namaPem}</strong><br>
-    <strong style="font-size:18px;">${namaInst}</strong><br>
-    <span style="font-size:12px;">${cfg.alamat || ''} ${cfg.telepon ? '• Telp. ' + cfg.telepon : ''}</span>
-  </div>`;
-}
-
 // ================== LOGO ==================
-window.getLogoUrl = async function() {
+window.getLogoUrl = async function () {
   const opdId = await _getOpdId();
   if (!opdId) return null;
 
   try {
     const cfg = await getOpdConfig(opdId);
     return cfg?._logoInstansi || localStorage.getItem('sideva_logo_instansi');
-  } catch(e) {
+  } catch (e) {
     return localStorage.getItem('sideva_logo_instansi');
   }
 };
 
 // ================== UPLOAD HANDLER ==================
-window.processKopFile = async function(file) {
-  if (!file.type.startsWith('image/')) return toast('File harus gambar!', 'error');
+window.processKopFile = async function (file) {
+  if (!file) return toast('Belum ada file yang dipilih', 'error');
+  if (!file.type?.startsWith('image/')) return toast('File harus gambar!', 'error');
+
   const opdId = await _getOpdId();
   if (!opdId) return toast('Pilih OPD terlebih dahulu', 'error');
 
   try {
-    const ext = file.name.split('.').pop();
+    const name = file.name || '';
+    const extRaw = name.includes('.') ? name.split('.').pop() : 'png';
+    const ext = (extRaw || 'png').toLowerCase();
+
     const path = `kop/kop_${opdId}.${ext}`;
     const publicUrl = await _uploadToStorage(file, path);
 
-    // --- PERBAIKAN DI SINI ---
-    const currentCfg = await getOpdConfig(opdId) || {};
+    const currentCfg = await getOpdConfig(opdId).catch(() => ({})) || {};
     const updatedCfg = { ...currentCfg, _kopSuratImg: publicUrl };
     await saveOpdConfig(opdId, updatedCfg);
-    // -------------------------
 
     localStorage.setItem('sideva_kop_surat_img', publicUrl);
-    await refreshKopPreviewArea();
+
+    await window.refreshKopPreviewArea();
     toast('✅ Kop surat berhasil diupload!', 'success');
-  } catch(err) {
-    toast('Gagal upload kop: ' + err.message, 'error');
+  } catch (err) {
+    toast('Gagal upload kop: ' + (err?.message || String(err)), 'error');
   }
 };
 
-window.processLogo = async function(file) {
-  if (!file.type.startsWith('image/')) return toast('File harus gambar!', 'error');
+window.processLogo = async function (file) {
+  if (!file) return toast('Belum ada file yang dipilih', 'error');
+  if (!file.type?.startsWith('image/')) return toast('File harus gambar!', 'error');
+
   const opdId = await _getOpdId();
   if (!opdId) return toast('Pilih OPD terlebih dahulu', 'error');
 
   try {
-    const ext = file.name.split('.').pop();
+    const name = file.name || '';
+    const extRaw = name.includes('.') ? name.split('.').pop() : 'png';
+    const ext = (extRaw || 'png').toLowerCase();
+
     const path = `logo/logo_${opdId}.${ext}`;
     const publicUrl = await _uploadToStorage(file, path);
 
-    // --- PERBAIKAN DI SINI ---
-    const currentCfg = await getOpdConfig(opdId) || {};
+    const currentCfg = await getOpdConfig(opdId).catch(() => ({})) || {};
     const updatedCfg = { ...currentCfg, _logoInstansi: publicUrl };
     await saveOpdConfig(opdId, updatedCfg);
-    // -------------------------
 
     localStorage.setItem('sideva_logo_instansi', publicUrl);
     toast('✅ Logo berhasil diupload!', 'success');
+
     const preview = document.getElementById('logo-img-preview');
     if (preview) preview.src = publicUrl;
-  } catch(err) {
-    toast('Gagal upload logo: ' + err.message, 'error');
+  } catch (err) {
+    toast('Gagal upload logo: ' + (err?.message || String(err)), 'error');
   }
 };
 
 // ================== PREVIEW REFRESH ==================
-window.refreshKopPreviewArea = async function() {
+window.refreshKopPreviewArea = async function () {
   const area = document.getElementById('kop-preview-area');
   if (!area) return;
 
+  // Render HTML kop
   try {
-    // Gunakan await untuk mendapatkan string HTML dari fungsi async kopSurat
     const htmlKop = await window.kopSurat();
     area.innerHTML = htmlKop;
   } catch (err) {
@@ -172,125 +179,90 @@ window.refreshKopPreviewArea = async function() {
     </div>`;
   }
 
+  // Update label status
   const lbl = document.getElementById('kop-preview-label-text');
-  if (lbl) {
-    let hasImg = false;
-    
-    try {
-      // 1. Cek cache lokal
-      const localImg = localStorage.getItem('sideva_kop_surat_img');
-      
-      // 2. Cek ke database (Supabase)
-      let dbImg = null;
-      if (typeof getOpdConfig === 'function') {
-        const opdId = await _getOpdId();
-        if (opdId) {
-          const cfg = await getOpdConfig(opdId);
-          dbImg = cfg?._kopSuratImg;
-        }
-      }
+  if (!lbl) return;
 
-      hasImg = !!(localImg || dbImg);
-    } catch (e) {
-      console.warn("Gagal memeriksa status gambar kop:", e);
-      hasImg = !!localStorage.getItem('sideva_kop_surat_img');
+  let hasImg = false;
+
+  try {
+    const localImg = localStorage.getItem('sideva_kop_surat_img');
+
+    let dbImg = null;
+    if (typeof getOpdConfig === 'function') {
+      const opdId = await _getOpdId();
+      if (opdId) {
+        const cfg = await getOpdConfig(opdId).catch(() => ({}));
+        dbImg = cfg?._kopSuratImg ?? null;
+      }
     }
 
-    // Update label status di UI agar user tahu mode mana yang aktif
-    lbl.textContent = hasImg 
-      ? '✅ Menggunakan gambar kop surat' 
-      : '📝 Menggunakan teks fallback (Belum ada gambar)';
-    
-    // Opsional: Tambahkan styling warna pada label
-    lbl.style.color = hasImg ? '#4ade80' : '#fbbf24';
+    hasImg = !!(localImg || dbImg);
+  } catch (e) {
+    hasImg = !!localStorage.getItem('sideva_kop_surat_img');
   }
+
+  lbl.textContent = hasImg
+    ? '✅ Menggunakan gambar kop surat'
+    : '📝 Menggunakan teks fallback (Belum ada gambar)';
+
+  lbl.style.color = hasImg ? '#4ade80' : '#fbbf24';
 };
 
 // ================== INIT ==================
-window.initKopSuratSystem = function() {
-  window.refreshKopPreviewArea();
-  setTimeout(window.refreshKopPreviewArea, 800);
+window.initKopSuratSystem = async function () {
+  await window.refreshKopPreviewArea();
+  setTimeout(() => window.refreshKopPreviewArea(), 800);
 };
 
-// Auto init
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', window.initKopSuratSystem);
-} else {
-  window.initKopSuratSystem();
-}
-
-// ============================================================
-// FIX: AUTOMATIC WATCHDOG INITIALIZER FOR KOP SURAT
-// ============================================================
+// ================== WATCHDOG: aktifkan saat form instansi ada ==================
 function cekDanAktifkanKopSurat() {
-    // Deteksi apakah form Pengaturan Instansi sedang terbuka di layar
-    const inputNamaInstansi = document.getElementById('nama_instansi') || document.querySelector('input[placeholder*="Badan Perencanaan"]');
-    
-    // Jika form ada di layar dan belum pernah diaktifkan fiturnya
-    if (inputNamaInstansi && !window.kopSuratAktif) {
-        console.log("[SI-DEVA] Form Pengaturan Instansi terdeteksi. Mengaktifkan Live Preview...");
-        
-        // Memanggil fungsi UTAMA asli milik Anda yang ada di baris atas file ini
-        if (typeof window.initKopSuratSystem === 'function') {
-            window.initKopSuratSystem();
-        }
-        
-        window.kopSuratAktif = true; // Kunci agar tidak terjadi inisialisasi ganda
-    }
-    
-    // Jika pengguna pindah ke menu lain, buka kembali kuncinya
-    if (!inputNamaInstansi) {
-        window.kopSuratAktif = false;
-    }
-}
+  const inputNamaInstansi =
+    document.getElementById('nama_instansi') ||
+    document.querySelector('input[placeholder*="Badan Perencanaan"]');
 
-// Lakukan pemindaian otomatis setiap 500 milidetik
+  if (inputNamaInstansi && !window.kopSuratAktif) {
+    console.log("[SI-DEVA] Form Pengaturan Instansi terdeteksi. Mengaktifkan Live Preview...");
+    window.initKopSuratSystem?.();
+    window.kopSuratAktif = true;
+  }
+
+  if (!inputNamaInstansi) {
+    window.kopSuratAktif = false;
+  }
+}
 setInterval(cekDanAktifkanKopSurat, 500);
 
-// ================== LIVE PREVIEW SYNC ==================
+// ================== LIVE PREVIEW SYNC (teks fallback) ==================
 function sinkronkanInputKePreview() {
   const fields = {
     'nama_instansi': 'namaInstansi',
-    'alamat_instansi': 'alamat', // Sesuaikan ID input di HTML Anda
-    'telepon_instansi': 'telepon'
+    'alamat_instansi': 'alamat',
+    'telepon_instansi': 'telepon',
   };
 
-  Object.keys(fields).forEach(id => {
+  Object.keys(fields).forEach((id) => {
     const el = document.getElementById(id);
-    if (el) {
-      el.addEventListener('input', (e) => {
-        // Update temporary config
-        if (!window.appConfig) window.appConfig = {};
-        window.appConfig[fields[id]] = e.target.value;
-        
-        // Render ulang area pratinjau (hanya jika sedang pakai teks fallback)
-        window.refreshKopPreviewArea();
-      });
-    }
+    if (!el) return;
+
+    el.addEventListener('input', (e) => {
+      if (!window.appConfig) window.appConfig = {};
+      window.appConfig[fields[id]] = e.target.value;
+      window.refreshKopPreviewArea();
+    });
   });
 }
 
-// Panggil fungsi ini saat inisialisasi
-window.addEventListener('DOMContentLoaded', sinkronkanInputKePreview);
+// Jalankan saat DOM siap
+function bootKopSystem() {
+  window.initKopSuratSystem();
+  sinkronkanInputKePreview();
+  // satu refresh lagi untuk aman
+  setTimeout(() => window.refreshKopPreviewArea(), 300);
+}
 
-// Safe Wrapper untuk mencegah [object Promise] jika dipanggil tanpa await
-const originalKopSurat = window.kopSurat;
-window.kopSurat = async function() {
-  const result = await originalKopSurat();
-  // Jika karena suatu alasan hasilnya masih promise (nested), selesaikan
-  return (result instanceof Promise) ? await result : result;
-};
-
-window.refreshKopPreviewArea = async function() {
-  const area = document.getElementById('kop-preview-area');
-  if (!area) return;
-  // Memastikan hasil ditunggu (await) sebelum masuk ke DOM
-  const html = await window.kopSurat();
-  area.innerHTML = html; 
-  console.log("Pratinjau berhasil diperbarui.");
-};
-// Jalankan ulang
-refreshKopPreviewArea();
-
-
-
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', bootKopSystem);
+} else {
+  bootKopSystem();
+}
