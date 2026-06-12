@@ -494,6 +494,45 @@ function hapusKolomAksiKonflikOPD() {
 // Jalankan pemindaian otomatis agar kolom langsung bersih saat halaman dimuat
 setInterval(hapusKolomAksiKonflikOPD, 400);
 
+/**
+ * Mengambil data konfigurasi spesifik untuk satu OPD
+ * Digunakan oleh Kop Surat Manager dan Logo Manager
+ */
+window.getOpdConfig = async function(opdId) {
+  if (!opdId) return null;
+
+  // 1. Cek di cache memori dulu (Map _cachedOpdConfigs)
+  if (typeof _cachedOpdConfigs !== 'undefined' && _cachedOpdConfigs.has(opdId)) {
+    return _cachedOpdConfigs.get(opdId);
+  }
+
+  try {
+    // 2. Jika tidak ada di cache, ambil langsung dari database
+    // Menggunakan sbFetch yang sudah ada di sistem Anda
+    const rows = await sbFetch(`/rest/v1/opd_config?opd_id=eq.${opdId}&select=data`, 'GET');
+    
+    if (rows && rows.length > 0) {
+      const configData = rows[0].data || {};
+      
+      // Simpan ke cache agar pemanggilan berikutnya lebih cepat
+      if (typeof _cachedOpdConfigs !== 'undefined') {
+        _cachedOpdConfigs.set(opdId, configData);
+      }
+      
+      return configData;
+    }
+  } catch (error) {
+    console.error("Gagal mengambil konfigurasi OPD:", error);
+  }
+
+  return null;
+};
+
+
+
+
+
+
 // ========== INITIALIZATION ==========
 
 // Pastikan data dimuat ulang otomatis saat sesi auth berhasil dipulihkan
