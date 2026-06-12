@@ -254,3 +254,46 @@ window.deleteUserConfirm = async function(userId, name) {
     renderManajemenUser();
   } catch(e) { toast('Gagal menghapus user', 'error'); }
 };
+
+window.openEditUserModal = async function(userId, name, email, role) {
+  try {
+    // Ambil daftar semua OPD
+    const opds = await sbFetch('/rest/v1/opd?select=id,nama_opd&order=nama_opd', 'GET');
+    // Ambil akses OPD saat ini
+    const current = await sbFetch(`/rest/v1/user_opd_access?user_id=eq.${userId}&select=opd_id`, 'GET');
+    const currentOpdId = current?.[0]?.opd_id;
+
+    const modal = document.createElement('div');
+    modal.id = 'modal-edit-user';
+    modal.style.cssText = 'position:fixed;inset:0;z-index:10001;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;';
+    modal.innerHTML = `
+      <div style="background:var(--surface);border-radius:12px;padding:28px;width:100%;max-width:400px;">
+        <div style="font-weight:700;margin-bottom:15px;">✏️ Edit Akses OPD</div>
+        <div style="font-size:13px;margin-bottom:10px;">User: <strong>${name}</strong></div>
+        <select id="edit-user-opd" class="form-control">
+          <option value="">-- Pilih OPD --</option>
+          ${opds.map(o => `<option value="${o.id}" ${o.id == currentOpdId ? 'selected' : ''}>${o.nama_opd}</option>`).join('')}
+        </select>
+        <div style="display:flex;gap:10px;margin-top:20px;">
+          <button class="btn btn-primary" style="flex:1;" onclick="submitEditUser('${userId}')">💾 Simpan</button>
+          <button class="btn btn-secondary" onclick="this.closest('#modal-edit-user').remove()">Batal</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+  } catch(e) { toast('Gagal memuat data', 'error'); }
+};
+
+window.submitEditUser = async function(userId) {
+  const opdId = document.getElementById('edit-user-opd').value;
+  try {
+    // Hapus akses lama dan tambah yang baru
+    await sbFetch(`/rest/v1/user_opd_access?user_id=eq.${userId}`, 'DELETE');
+    if (opdId) {
+      await sbFetch('/rest/v1/user_opd_access', 'POST', { user_id: userId, opd_id: opdId });
+    }
+    toast('Akses OPD berhasil diperbarui', 'success');
+    document.getElementById('modal-edit-user').remove();
+    renderManajemenUser();
+  } catch(e) { toast('Gagal menyimpan', 'error'); }
+};
