@@ -154,3 +154,36 @@ if (document.readyState === 'loading') {
 } else {
   window.initKopSuratSystem();
 }
+
+// ============================================================
+// FIX: AUTOMATIC WATCHDOG INITIALIZER FOR KOP SURAT
+// ============================================================
+function cekDanAktifkanKopSurat() {
+    // Deteksi apakah form Pengaturan Instansi sedang terbuka di layar
+    const inputNamaInstansi = document.getElementById('nama_instansi') || document.querySelector('input[placeholder*="Badan Perencanaan"]');
+    
+    // Jika form ada di layar dan belum pernah diaktifkan fiturnya
+    if (inputNamaInstansi && !window.kopSuratAktif) {
+        console.log("[SI-DEVA] Form Pengaturan Instansi terdeteksi. Mengaktifkan Live Preview...");
+        
+        // Menjalankan fungsi bawaan utama dari kop-surat-manager.js
+        if (typeof initKopSurat === 'function') {
+            initKopSurat();
+        } else if (typeof initKopSuratManager === 'function') {
+            initKopSuratManager();
+        } else if (typeof setupKopSurat === 'function') {
+            setupKopSurat();
+        }
+        
+        window.kopSuratAktif = true; // Kunci agar tidak terjadi inisialisasi ganda
+    }
+    
+    // Jika pengguna pindah ke menu lain, buka kembali kuncinya
+    if (!inputNamaInstansi) {
+        window.kopSuratAktif = false;
+    }
+}
+
+// Lakukan pemindaian otomatis setiap 500 milidetik
+setInterval(cekDanAktifkanKopSurat, 500);
+
