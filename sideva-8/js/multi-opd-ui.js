@@ -93,7 +93,6 @@ if (typeof escapeHtml !== 'function') {
   };
 }
 
-js
 // --- JAVASCRIPT UNTUK PENGELOMPOKAN MENU ---
 function applySidebarGrouping() {
   const nav = document.querySelector('.sidebar-nav');
