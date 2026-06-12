@@ -92,3 +92,52 @@ if (typeof escapeHtml !== 'function') {
     });
   };
 }
+
+js
+// --- JAVASCRIPT UNTUK PENGELOMPOKAN MENU ---
+function applySidebarGrouping() {
+  const nav = document.querySelector('.sidebar-nav');
+  if (!nav) return;
+
+  const items = Array.from(nav.children);
+  nav.innerHTML = ''; 
+  let currentGroup = null;
+
+  items.forEach(item => {
+    const text = item.innerText.toUpperCase();
+    const isLabel = item.classList.contains('nav-section-label');
+    const isAdmin = item.classList.contains('admin-only') || text.includes('ADMIN');
+
+    if (isLabel || (isAdmin && (!currentGroup || !currentGroup.classList.contains('nav-group-admin')))) {
+      currentGroup = document.createElement('div');
+      currentGroup.className = 'nav-group-wrapper';
+      
+      if (isAdmin) {
+        currentGroup.classList.add('nav-group-admin');
+        const label = document.createElement('div');
+        label.className = 'nav-section-label';
+        label.innerText = 'SUPER ADMIN PANEL';
+        currentGroup.appendChild(label);
+        if (!isLabel) currentGroup.appendChild(item);
+      } else {
+        if (text.includes('TOOLS')) currentGroup.classList.add('nav-group-tools');
+        currentGroup.appendChild(item);
+      }
+      nav.appendChild(currentGroup);
+    } else if (currentGroup) {
+      currentGroup.appendChild(item);
+    } else {
+      nav.appendChild(item);
+    }
+  });
+}
+
+// Jalankan fungsi setelah DOM siap
+document.addEventListener('DOMContentLoaded', applySidebarGrouping);
+// Jalankan juga setelah jeda singkat untuk memastikan menu dinamis sudah muncul
+setTimeout(applySidebarGrouping, 1000);
+
+
+
+
+
