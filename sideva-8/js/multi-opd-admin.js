@@ -102,12 +102,22 @@ async function sbGetAllUsersWithEmail() {
 })();
 
 // ========== STATE ==========
+// ========== STATE (SYNCED) ==========
 let _opdMgmtLoading = false;
 let _cachedOpdList = null;
 let _cachedOpdListTime = 0;
 let _cachedOpdConfigs = new Map();
 let _cachedUsersWithAccess = null;
 const CACHE_TTL = 60000;
+
+// TAMBAHKAN INI: Ambil ID OPD dari storage agar tidak hilang saat refresh
+let _currentOpdId = localStorage.getItem('sideva_current_opd_id') || null;
+
+function _saveCurrentOpdSelection(id) {
+  _currentOpdId = id;
+  if (id) localStorage.setItem('sideva_current_opd_id', id);
+  else localStorage.removeItem('sideva_current_opd_id');
+}
 
 // ========== HELPER ==========
 function _getCurrentUserId() {
@@ -156,6 +166,10 @@ async function _loadAllOpdConfigs(forceRefresh = false) {
 
 // ========== AMBIL SEMUA USER + AKSES (BATCH) ==========
 async function _getAllUsersWithAccessBatch(forceRefresh = false) {
+  // TAMBAHKAN INI:
+  if (typeof isLoggedIn === 'function' && !isLoggedIn()) {
+    return { users: [], userAccessMap: new Map() };
+  }
   if (!forceRefresh && _cachedUsersWithAccess) return _cachedUsersWithAccess;
   try {
     const users = await sbGetAllUsersWithEmail();
@@ -480,7 +494,24 @@ function hapusKolomAksiKonflikOPD() {
 // Jalankan pemindaian otomatis agar kolom langsung bersih saat halaman dimuat
 setInterval(hapusKolomAksiKonflikOPD, 400);
 
+// ========== INITIALIZATION ==========
 
+// Pastikan data dimuat ulang otomatis saat sesi auth berhasil dipulihkan
+window.addEventListener('sb-ready', async (e) => { 
+  if (e.detail && e.detail.loggedIn) { 
+    console.log("[Multi-OPD] Auth siap, memulihkan data...");
+    
+    // Muat data awal secara background
+    await _loadAllOpdConfigs(true);
+    await _getAllOpdList(true);
+    
+    // Jika user sedang membuka halaman manajemen, render ulang
+    const area = document.getElementById('page-opd-management');
+    if (area && typeof window.renderOpdManagement === 'function') {
+      window.renderOpdManagement();
+    }
+  }
+});
 
 
 
