@@ -2,6 +2,40 @@
 // SI-DEVA — Branding Patch v8 (UI/UX Clean)
 // Ganti file lama branding-patch.js dengan ini
 // ============================================================
+
+// ============================================================
+// FIX: HARD REFRESH LOGOUT BUSTER (ANTI-TRAP URL)
+// ============================================================
+(function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    
+    // Cek apakah ada token aktif Supabase di dalam localStorage
+    const hasActiveSession = Object.keys(localStorage).some(key => 
+        key.startsWith('sb-') && key.endsWith('-auth-token')
+    );
+
+    // Jika user punya sesi login aktif tetapi di URL-nya terdeteksi jebakan '?loggedout'
+    if (hasActiveSession && urlParams.has('loggedout')) {
+        console.warn("[SI-DEVA Auth] Sesi aktif ditemukan. Membersihkan jebakan URL '?loggedout'...");
+        
+        // Hapus parameter 'loggedout' dari memori URL
+        urlParams.delete('loggedout');
+        
+        // Susun kembali URL yang bersih
+        const newSearch = urlParams.toString();
+        const cleanUrl = window.location.pathname + (newSearch ? '?' + newSearch : '') + window.location.hash;
+        
+        // Ubah URL di Address Bar secara instan tanpa memicu reload/logout
+        window.history.replaceState({}, document.title, cleanUrl);
+    }
+})();
+// ============================================================
+
+
+
+
+
+
 (function _applyBranding() {
   const style = document.createElement('style');
   style.textContent = `
