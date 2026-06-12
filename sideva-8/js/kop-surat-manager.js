@@ -85,8 +85,6 @@ window.getLogoUrl = async function() {
 // ================== UPLOAD HANDLER ==================
 window.processKopFile = async function(file) {
   if (!file.type.startsWith('image/')) return toast('File harus gambar!', 'error');
-  if (file.size > 5 * 1024 * 1024) return toast('Ukuran maksimal 5MB!', 'error');
-
   const opdId = await _getOpdId();
   if (!opdId) return toast('Pilih OPD terlebih dahulu', 'error');
 
@@ -95,20 +93,22 @@ window.processKopFile = async function(file) {
     const path = `kop/kop_${opdId}.${ext}`;
     const publicUrl = await _uploadToStorage(file, path);
 
-    await saveOpdConfig(opdId, { _kopSuratImg: publicUrl });
-    localStorage.setItem('sideva_kop_surat_img', publicUrl);
+    // --- PERBAIKAN DI SINI ---
+    const currentCfg = await getOpdConfig(opdId) || {};
+    const updatedCfg = { ...currentCfg, _kopSuratImg: publicUrl };
+    await saveOpdConfig(opdId, updatedCfg);
+    // -------------------------
 
+    localStorage.setItem('sideva_kop_surat_img', publicUrl);
     await refreshKopPreviewArea();
     toast('✅ Kop surat berhasil diupload!', 'success');
   } catch(err) {
-    console.error(err);
     toast('Gagal upload kop: ' + err.message, 'error');
   }
 };
 
 window.processLogo = async function(file) {
   if (!file.type.startsWith('image/')) return toast('File harus gambar!', 'error');
-
   const opdId = await _getOpdId();
   if (!opdId) return toast('Pilih OPD terlebih dahulu', 'error');
 
@@ -117,11 +117,14 @@ window.processLogo = async function(file) {
     const path = `logo/logo_${opdId}.${ext}`;
     const publicUrl = await _uploadToStorage(file, path);
 
-    await saveOpdConfig(opdId, { _logoInstansi: publicUrl });
-    localStorage.setItem('sideva_logo_instansi', publicUrl);
+    // --- PERBAIKAN DI SINI ---
+    const currentCfg = await getOpdConfig(opdId) || {};
+    const updatedCfg = { ...currentCfg, _logoInstansi: publicUrl };
+    await saveOpdConfig(opdId, updatedCfg);
+    // -------------------------
 
+    localStorage.setItem('sideva_logo_instansi', publicUrl);
     toast('✅ Logo berhasil diupload!', 'success');
-    // Refresh preview jika ada
     const preview = document.getElementById('logo-img-preview');
     if (preview) preview.src = publicUrl;
   } catch(err) {
