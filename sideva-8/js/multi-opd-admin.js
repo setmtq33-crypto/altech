@@ -2,6 +2,29 @@
 //  SI-DEVA — Multi-OPD Admin Management v8 (Final - Gabungan Terbaik)
 // ============================================================
 
+async function sbGetAllUsersWithEmail() {
+    try {
+        // Memastikan koneksi supabase tersedia
+        if (typeof supabase === 'undefined') {
+            console.error("Koneksi 'supabase' tidak ditemukan di file ini.");
+            return [];
+        }
+        
+        // Mengambil data user dari tabel 'profiles'
+        const { data, error } = await supabase
+            .from('profiles') // Ganti 'profiles' jika nama tabel user Anda berbeda
+            .select('*');
+            
+        if (error) throw error;
+        return data || [];
+    } catch (error) {
+        console.error("Error sbGetAllUsersWithEmail:", error);
+        return [];
+    }
+}
+
+
+
 // ========== INJEK CSS ==========
 (function injectOpdAdminStyle() {
   if (document.getElementById('multi-opd-admin-style')) return;
