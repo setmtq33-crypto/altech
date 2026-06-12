@@ -137,18 +137,26 @@ window.refreshKopPreviewArea = async function() {
   const area = document.getElementById('kop-preview-area');
   if (!area) return;
 
-  // Render HTML Kop Surat (Gambar atau Teks Fallback)
-  area.innerHTML = await window.kopSurat();
+  try {
+    // Gunakan await untuk mendapatkan string HTML dari fungsi async kopSurat
+    const htmlKop = await window.kopSurat();
+    area.innerHTML = htmlKop;
+  } catch (err) {
+    console.error("Gagal merender pratinjau kop:", err);
+    area.innerHTML = `<div style="color:red; padding:10px; border:1px dashed red;">
+      Gagal memuat pratinjau. Silakan coba unggah ulang atau hubungi admin.
+    </div>`;
+  }
 
   const lbl = document.getElementById('kop-preview-label-text');
   if (lbl) {
     let hasImg = false;
     
     try {
-      // 1. Cek cache lokal dulu
+      // 1. Cek cache lokal
       const localImg = localStorage.getItem('sideva_kop_surat_img');
       
-      // 2. Cek ke database (Supabase) jika fungsi pembantu tersedia
+      // 2. Cek ke database (Supabase)
       let dbImg = null;
       if (typeof getOpdConfig === 'function') {
         const opdId = await _getOpdId();
@@ -164,10 +172,13 @@ window.refreshKopPreviewArea = async function() {
       hasImg = !!localStorage.getItem('sideva_kop_surat_img');
     }
 
-    // Update label status di UI
+    // Update label status di UI agar user tahu mode mana yang aktif
     lbl.textContent = hasImg 
       ? '✅ Menggunakan gambar kop surat' 
       : '📝 Menggunakan teks fallback (Belum ada gambar)';
+    
+    // Opsional: Tambahkan styling warna pada label
+    lbl.style.color = hasImg ? '#4ade80' : '#fbbf24';
   }
 };
 
