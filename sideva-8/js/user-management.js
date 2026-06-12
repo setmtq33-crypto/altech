@@ -5,14 +5,83 @@
 
 let _cachedMyOpdId = null;
 
+const USER_ROLES_TABLE = '/rest/v1/user_roles';
+const USER_OPD_TABLE = '/rest/v1/user_opd_access';
+
+function _normalizeEmail(email) {
+  return String(email || '').trim().toLowerCase();
+}
+
+function _normalizeRole(role) {
+  const value = String(role || 'viewer').trim().toLowerCase().replace(/[\s-]+/g, '_');
+  return ['viewer', 'operator', 'admin', 'admin_opd', 'super_admin'].includes(value) ? value : 'viewer';
+}
+
+function _getCurrentUserId() {
+  const currentUser = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+  return currentUser?.id || currentUser?.user_id || currentUser?.sub || currentUser?.uid || null;
+}
+
+function _getSignupUserId(result) {
+  return result?.user?.id || result?.id || result?.user_id || result?.data?.user?.id || null;
+}
+
+function _isDuplicateSignupError(err) {
+  const msg = String(err?.message || '').toLowerCase();
+  return msg.includes('already registered') || msg.includes('already exists') || msg.includes('user already');
+}
+
+async function _getUserRoleByEmail(email) {
+  const normalizedEmail = _normalizeEmail(email);
+  if (!normalizedEmail) return null;
+  const rows = await sbFetch(`${USER_ROLES_TABLE}?email=eq.${encodeURIComponent(normalizedEmail)}&select=*`, 'GET');
+  return rows?.[0] || null;
+}
+
+async function _getUserRoleByUserId(userId) {
+  if (!userId) return null;
+  const rows = await sbFetch(`${USER_ROLES_TABLE}?user_id=eq.${encodeURIComponent(userId)}&select=*`, 'GET');
+  return rows?.[0] || null;
+}
+
+async function _upsertUserRoleProfile({ userId, email, role, displayName }) {
+  const normalizedEmail = _normalizeEmail(email);
+  const payload = {
+    user_id: userId,
+    email: normalizedEmail,
+    role: _normalizeRole(role),
+    display_name: displayName || normalizedEmail.split('@')[0]
+  };
+
+  const rows = await sbFetch(
+    `${USER_ROLES_TABLE}?on_conflict=user_id`,
+    'POST',
+    payload,
+    { Prefer: 'resolution=merge-duplicates,return=representation' }
+  );
+
+  const saved = rows?.[0] || await _getUserRoleByUserId(userId);
+  if (!saved) {
+    throw new Error('Profil user berhasil dikirim, tetapi tidak bisa dibaca ulang dari tabel user_roles. Periksa policy RLS SELECT/INSERT/UPSERT untuk super admin.');
+  }
+  return saved;
+}
+
+async function _ensureUserVisible(userId, email) {
+  const row = await _getUserRoleByUserId(userId) || await _getUserRoleByEmail(email);
+  if (!row) {
+    throw new Error('User Auth sudah dibuat, tetapi profilnya tidak muncul di user_roles. Periksa RLS table user_roles agar super admin boleh insert dan select semua profil.');
+  }
+  return row;
+}
+
 /**
  * HELPER: Ambil OPD milik user yang sedang login
  */
 async function _getMyOpdId() {
   if (_cachedMyOpdId !== null) return _cachedMyOpdId;
   try {
-    const currentUser = getCurrentUser();
-    const myId = currentUser?.id || currentUser?.user_id;
+    const myId = _getCurrentUserId();
     if (!myId) return null;
     const rows = await sbFetch(`/rest/v1/user_opd_access?user_id=eq.${myId}&select=opd_id`, 'GET');
     if (!rows || rows.length === 0) return null;
@@ -28,10 +97,11 @@ async function _getMyOpdId() {
  * HELPER: Fungsi pendaftaran user ke Supabase Auth
  */
 async function sbInviteUser(email, password, role, displayName) {
+  const normalizedEmail = _normalizeEmail(email);
   return await sbFetch('/auth/v1/signup', 'POST', {
-    email: email,
+    email: normalizedEmail,
     password: password,
-    data: { role, display_name: displayName }
+    data: { role: _normalizeRole(role), display_name: displayName || normalizedEmail.split('@')[0] }
   });
 }
 
@@ -67,20 +137,20 @@ async function renderManajemenUser() {
 
     if (isSuper) {
       // Super admin melihat semua user dari tabel user_roles
-      users = await sbFetch('/rest/v1/user_roles?select=*&order=created_at.desc', 'GET');
+      users = await sbFetch(`${USER_ROLES_TABLE}?select=*&order=created_at.desc`, 'GET');
     } else {
       // Admin OPD hanya melihat user yang memiliki akses ke OPD yang sama
       const myOpdId = await _getMyOpdId();
       if (!myOpdId) {
         users = [];
       } else {
-        const accessRows = await sbFetch(`/rest/v1/user_opd_access?opd_id=eq.${myOpdId}&select=user_id`, 'GET');
+        const accessRows = await sbFetch(`${USER_OPD_TABLE}?opd_id=eq.${myOpdId}&select=user_id`, 'GET');
         const userIds = [...new Set((accessRows || []).map(r => r.user_id))];
         if (userIds.length === 0) {
           users = [];
         } else {
           const userFilter = userIds.map(id => `user_id.eq.${id}`).join(',');
-          users = await sbFetch(`/rest/v1/user_roles?or=(${userFilter})&order=created_at.desc`, 'GET');
+          users = await sbFetch(`${USER_ROLES_TABLE}?or=(${userFilter})&order=created_at.desc`, 'GET');
         }
       }
     }
@@ -105,7 +175,7 @@ async function _renderUserTable(el, users, isSuper) {
 
   const roleClass = (r) => {
     if (r === 'super_admin') return 'um-badge-superadmin';
-    if (r === 'admin') return 'um-badge-admin';
+    if (r === 'admin' || r === 'admin_opd') return 'um-badge-admin';
     if (r === 'operator') return 'um-badge-operator';
     return 'um-badge-viewer';
   };
@@ -123,15 +193,16 @@ async function _renderUserTable(el, users, isSuper) {
   users.forEach((u, i) => {
     const displayName = u.display_name || u.email?.split('@')[0] || '-';
     const email = u.email || '-';
-    const role = u.role || 'viewer';
+    const role = _normalizeRole(u.role);
     const userId = u.user_id || u.id;
     
     // Cegah admin biasa mengedit sesama admin atau super admin
-    const canManage = isSuper || (role !== 'admin' && role !== 'super_admin');
+    const canManage = isSuper || !['admin', 'admin_opd', 'super_admin'].includes(role);
     const actionBtns = canManage ? `
-      <button class="btn btn-secondary btn-sm" onclick="openEditUserModal('${userId}', '${escapeHtml(displayName)}', '${escapeHtml(email)}', '${role}')">✏️ Edit</button>
-      <button class="btn btn-danger btn-sm" onclick="deleteUserConfirm('${userId}', '${escapeHtml(displayName)}')">🗑️ Hapus</button>
-    ` : '<span class="text-muted">—</span>';
+      <button class="btn btn-secondary btn-sm" data-um-action="edit" data-user-id="${attr(userId)}" data-name="${attr(displayName)}" data-email="${attr(email)}" data-role="${attr(role)}">✏️ Edit</button>
+      ${typeof openResetPwModal === 'function' ? `<button class="btn btn-secondary btn-sm" data-um-action="reset" data-user-id="${attr(userId)}" data-email="${attr(email)}" title="Reset Password">🔑</button>` : ''}
+      <button class="btn btn-danger btn-sm" data-um-action="delete" data-user-id="${attr(userId)}" data-name="${attr(displayName)}">🗑️ Hapus</button>
+    ` : '<span class="text-muted">-</span>';
     
     html += `<tr>
       <td>${i+1}</td>
@@ -144,6 +215,14 @@ async function _renderUserTable(el, users, isSuper) {
 
   html += `</tbody></table></div></div>`;
   el.innerHTML = html;
+  el.querySelectorAll('[data-um-action]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const action = btn.dataset.umAction;
+      if (action === 'edit') openEditUserModal(btn.dataset.userId, btn.dataset.name, btn.dataset.email, btn.dataset.role);
+      if (action === 'reset' && typeof openResetPwModal === 'function') openResetPwModal(btn.dataset.userId, btn.dataset.email);
+      if (action === 'delete') deleteUserConfirm(btn.dataset.userId, btn.dataset.name);
+    });
+  });
 }
 
 // ========== FITUR: TAMBAH USER ==========
@@ -181,9 +260,9 @@ window.openAddUserModal = function() {
 };
 
 window.submitAddUser = async function() {
-  const email = document.getElementById('add-user-email')?.value.trim();
+  const email = _normalizeEmail(document.getElementById('add-user-email')?.value);
   const password = document.getElementById('add-user-password')?.value;
-  const role = document.getElementById('add-user-role')?.value;
+  const role = _normalizeRole(document.getElementById('add-user-role')?.value);
   const displayName = document.getElementById('add-user-display')?.value.trim();
   const errEl = document.getElementById('add-user-err');
   const btn = document.querySelector('#modal-add-user .btn-primary');
@@ -192,33 +271,44 @@ window.submitAddUser = async function() {
     if (errEl) { errEl.textContent = 'Email dan password wajib diisi'; errEl.style.display = 'block'; }
     return;
   }
+  if (password.length < 6) {
+    if (errEl) { errEl.textContent = 'Password minimal 6 karakter'; errEl.style.display = 'block'; }
+    return;
+  }
 
   try {
     if (btn) { btn.disabled = true; btn.textContent = '⏳ Memproses...'; }
-    
-    // 1. Daftarkan ke Supabase Auth
-    const result = await sbInviteUser(email, password, role, displayName);
-    const newUserId = result.user?.id || result.id;
-    if (!newUserId) throw new Error('Gagal mendapatkan ID user baru');
 
-    // 2. Masukkan ke tabel user_roles agar muncul di daftar
-    await sbFetch('/rest/v1/user_roles', 'POST', {
-      user_id: newUserId,
-      email: email,
-      role: role,
-      display_name: displayName || email.split('@')[0]
-    });
+    let result;
+    let newUserId;
+    try {
+      result = await sbInviteUser(email, password, role, displayName);
+      newUserId = _getSignupUserId(result);
+    } catch (signupErr) {
+      if (!_isDuplicateSignupError(signupErr)) throw signupErr;
 
-    // 3. Jika Admin OPD yang menambah, otomatis beri akses ke OPD yang sama
+      const existingProfile = await _getUserRoleByEmail(email);
+      if (!existingProfile?.user_id) {
+        throw new Error('Email sudah terdaftar di Auth, tetapi belum ada profil di user_roles. Buat/repair profil dari Supabase Dashboard karena Auth ID tidak bisa dibaca dari browser.');
+      }
+      newUserId = existingProfile.user_id;
+    }
+
+    if (!newUserId) throw new Error('Akun Auth dibuat, tetapi Supabase tidak mengembalikan ID user baru');
+
+    await _upsertUserRoleProfile({ userId: newUserId, email, role, displayName });
+
     if (!isSuperAdmin()) {
       const myOpdId = await _getMyOpdId();
       if (myOpdId) {
-        await sbFetch('/rest/v1/user_opd_access', 'POST', { 
+        await sbFetch(`${USER_OPD_TABLE}?on_conflict=user_id,opd_id`, 'POST', {
           user_id: newUserId, 
           opd_id: myOpdId 
-        });
+        }, { Prefer: 'resolution=merge-duplicates,return=representation' });
       }
     }
+
+    await _ensureUserVisible(newUserId, email);
 
     toast('User berhasil ditambahkan!', 'success');
     document.getElementById('modal-add-user')?.remove();
@@ -241,7 +331,7 @@ window.openEditUserModal = async function(userId, name, email, role) {
     // Ambil daftar semua OPD untuk dropdown
     const opds = await sbFetch('/rest/v1/opd?select=id,nama_opd&order=nama_opd', 'GET');
     // Ambil akses OPD user saat ini
-    const currentAccess = await sbFetch(`/rest/v1/user_opd_access?user_id=eq.${userId}&select=opd_id`, 'GET');
+    const currentAccess = await sbFetch(`${USER_OPD_TABLE}?user_id=eq.${userId}&select=opd_id`, 'GET');
     const currentOpdId = currentAccess?.[0]?.opd_id;
 
     const modal = document.createElement('div');
@@ -271,14 +361,14 @@ window.submitEditUser = async function(userId) {
   const opdId = document.getElementById('edit-user-opd').value;
   try {
     // Hapus akses lama terlebih dahulu
-    await sbFetch(`/rest/v1/user_opd_access?user_id=eq.${userId}`, 'DELETE');
+    await sbFetch(`${USER_OPD_TABLE}?user_id=eq.${userId}`, 'DELETE');
     
     // Jika OPD dipilih, masukkan data akses baru
     if (opdId) {
-      await sbFetch('/rest/v1/user_opd_access', 'POST', { 
+      await sbFetch(`${USER_OPD_TABLE}?on_conflict=user_id,opd_id`, 'POST', {
         user_id: userId, 
         opd_id: opdId 
-      });
+      }, { Prefer: 'resolution=merge-duplicates,return=representation' });
     }
     
     toast('Akses OPD berhasil diperbarui', 'success');
@@ -296,8 +386,8 @@ window.deleteUserConfirm = async function(userId, name) {
   
   try {
     // Hapus dari tabel user_roles dan user_opd_access
-    await sbFetch(`/rest/v1/user_roles?user_id=eq.${userId}`, 'DELETE');
-    await sbFetch(`/rest/v1/user_opd_access?user_id=eq.${userId}`, 'DELETE');
+    await sbFetch(`${USER_ROLES_TABLE}?user_id=eq.${userId}`, 'DELETE');
+    await sbFetch(`${USER_OPD_TABLE}?user_id=eq.${userId}`, 'DELETE');
     
     toast('User berhasil dihapus dari daftar', 'success');
     renderManajemenUser();
@@ -313,11 +403,15 @@ window.deleteUserConfirm = async function(userId, name) {
 function escapeHtml(text) {
   if (!text) return '';
   const map = {
-    '&': '&',
-    '<': '<',
-    '>': '>',
-    '"': '"',
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
     "'": '&#039;'
   };
-  return text.replace(/[&<>"']/g, m => map[m]);
+  return String(text).replace(/[&<>"']/g, m => map[m]);
+}
+
+function attr(text) {
+  return escapeHtml(String(text || ''));
 }

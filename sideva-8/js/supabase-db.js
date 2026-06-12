@@ -45,8 +45,10 @@ const SUPER_ADMIN_EMAILS = ['super_admin@sideva8.id'];
 async function sbFetch(path, method = 'GET', body = null, extra = {}, retries = 2) {
   const token = _session?.access_token;
   const headers = { 'apikey': SUPABASE_ANON_KEY, 'Content-Type': 'application/json',...(token? { 'Authorization': 'Bearer ' + token } : {}),...extra };
-  if (method === 'POST' && path.startsWith('/rest/')) headers['Prefer'] = 'resolution=merge-duplicates,return=representation';
-  else if (method!== 'GET' && path.startsWith('/rest/')) headers['Prefer'] = 'return=representation';
+  if (!headers.Prefer && !headers.prefer) {
+    if (method === 'POST' && path.startsWith('/rest/')) headers['Prefer'] = 'resolution=merge-duplicates,return=representation';
+    else if (method!== 'GET' && path.startsWith('/rest/')) headers['Prefer'] = 'return=representation';
+  }
   let url = SUPABASE_URL + path;
   if (!path.includes('apikey=')) url += (path.includes('?')? '&' : '?') + 'apikey=' + encodeURIComponent(SUPABASE_ANON_KEY);
   const controller = new AbortController(); const timeoutId = setTimeout(() => controller.abort(), 15000);
