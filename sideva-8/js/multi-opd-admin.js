@@ -3,20 +3,29 @@
 // ============================================================
 
 async function sbGetAllUsersWithEmail() {
-    try {
-        // Menggunakan sbFetch sesuai dengan standar file ini
-        if (typeof sbFetch === 'undefined') {
-            console.error("Fungsi 'sbFetch' tidak ditemukan.");
-            return [];
-        }
-        
-        // Mengambil data user dari tabel 'profiles' melalui REST API
-        const data = await sbFetch('/rest/v1/profiles?select=*', 'GET');
-        return data || [];
-    } catch (error) {
-        console.error("Error sbGetAllUsersWithEmail:", error);
+    if (typeof sbFetch === 'undefined') {
+        console.error("Fungsi 'sbFetch' tidak ditemukan.");
         return [];
     }
+
+    // 1. Coba ambil dari tabel 'profiles' terlebih dahulu
+    try {
+        const data = await sbFetch('/rest/v1/profiles?select=*', 'GET');
+        if (data && !data.error) return data;
+    } catch (e) {
+        console.log("Tabel 'profiles' tidak ada, mencoba tabel 'users'...");
+    }
+
+    // 2. Jika 'profiles' gagal/tidak ada, otomatis coba tabel 'users'
+    try {
+        const dataUsers = await sbFetch('/rest/v1/users?select=*', 'GET');
+        if (dataUsers && !dataUsers.error) return dataUsers;
+    } catch (e) {
+        console.error("Tabel 'users' juga tidak ditemukan di database.");
+    }
+
+    // 3. Jika kedua tabel tidak ada, kembalikan array kosong agar halaman tidak crash/macet
+    return [];
 }
 
 
