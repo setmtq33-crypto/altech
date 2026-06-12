@@ -4,18 +4,14 @@
 
 async function sbGetAllUsersWithEmail() {
     try {
-        // Memastikan koneksi supabase tersedia
-        if (typeof supabase === 'undefined') {
-            console.error("Koneksi 'supabase' tidak ditemukan di file ini.");
+        // Menggunakan sbFetch sesuai dengan standar file ini
+        if (typeof sbFetch === 'undefined') {
+            console.error("Fungsi 'sbFetch' tidak ditemukan.");
             return [];
         }
         
-        // Mengambil data user dari tabel 'profiles'
-        const { data, error } = await supabase
-            .from('profiles') // Ganti 'profiles' jika nama tabel user Anda berbeda
-            .select('*');
-            
-        if (error) throw error;
+        // Mengambil data user dari tabel 'profiles' melalui REST API
+        const data = await sbFetch('/rest/v1/profiles?select=*', 'GET');
         return data || [];
     } catch (error) {
         console.error("Error sbGetAllUsersWithEmail:", error);
