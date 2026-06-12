@@ -168,3 +168,42 @@ window.addEventListener('sb-ready', e => {
 window.addEventListener('sideva:page-changed', e => { 
   if(e?.detail?.page==='backup') setTimeout(()=>injectAuthPanel(),50); 
 });
+
+
+// ============================================================
+// AUTO-RESTORE SESSION ON REFRESH
+// ============================================================
+(async function initAuthOnLoad() {
+  // 1. Bersihkan URL jika ada parameter loggedout agar tidak terjebak loop logout
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.has('loggedout')) {
+    const cleanUrl = window.location.origin + window.location.pathname;
+    window.history.replaceState({}, document.title, cleanUrl);
+    showAuthOverlay();
+    return;
+  }
+
+  // 2. Cek apakah ada session tersimpan
+  const savedSession = localStorage.getItem('sideva_session_v3');
+  if (savedSession) {
+    try {
+      // Pastikan fungsi pendukung tersedia (sbFetch/sbLogin dsb biasanya mendefinisikan ini)
+      if (typeof isLoggedIn === 'function' && isLoggedIn()) {
+        console.log("[Auth] Sesi ditemukan, memulihkan...");
+        hideAuthOverlay();
+        applyRoleUI();
+        
+        // Opsional: Muat data ulang agar UI sinkron
+        if (typeof loadAllData === 'function') await loadAllData();
+        if (typeof renderAll === 'function') renderAll();
+      }
+    } catch (e) {
+      console.error("[Auth] Gagal restore session:", e);
+      showAuthOverlay();
+    }
+  } else {
+    // Jika benar-benar tidak ada session, tampilkan login
+    showAuthOverlay();
+  }
+})();
+
