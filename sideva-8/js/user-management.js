@@ -7,6 +7,20 @@
 // ========== HELPER: Ambil OPD milik user yang login ==========
 let _cachedMyOpdId = null;
 
+// Tambahkan ini di bagian atas file (misal setelah baris 7)
+async function sbInviteUser(email, password, role, displayName) {
+  // Menggunakan sbFetch yang sudah ada di kode Anda untuk mendaftarkan user
+  // Sesuaikan endpoint '/auth/v1/signup' dengan konfigurasi API Anda
+  return await sbFetch('/auth/v1/signup', 'POST', {
+    email: email,
+    password: password,
+    data: { 
+      role: role, 
+      display_name: displayName 
+    }
+  });
+}
+
 async function _getMyOpdId() {
   if (_cachedMyOpdId !== null) return _cachedMyOpdId;
   try {
@@ -225,6 +239,7 @@ window.submitAddUser = async function() {
   if (btn) { btn.disabled = true; btn.textContent = '⏳ Memproses...'; }
 
   try {
+    // Memanggil fungsi helper yang ditambahkan di atas
     const result = await sbInviteUser(email, password, role, displayName);
     const newUserId = result.user?.id || result.id;
     if (!newUserId) throw new Error('Gagal mendapatkan ID user baru');
@@ -251,11 +266,17 @@ window.submitAddUser = async function() {
     toast('User berhasil ditambahkan!', 'success');
     document.getElementById('modal-add-user')?.remove();
     renderManajemenUser();
-  } catch(e) {
-    errEl.textContent = 'Gagal: ' + e.message;
-    errEl.style.display = 'block';
-  } finally {
-    if (btn) { btn.disabled = false; btn.textContent = '✅ Simpan'; }
+    
+  } catch (err) {
+    console.error(err);
+    if (errEl) {
+      errEl.textContent = err.message || 'Gagal menambah user';
+      errEl.style.display = 'block';
+    }
+    if (btn) { 
+      btn.disabled = false; 
+      btn.textContent = '✅ Simpan'; 
+    }
   }
 };
 
