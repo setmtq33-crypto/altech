@@ -357,6 +357,45 @@ window.editOpdConfig = async function(opdId) {
   document.body.appendChild(modal);
 };
 
+
+/**
+ * Saves or updates the OPD configuration in the opd_config table
+ * @param {string} opdId - The UUID of the OPD
+ * @param {object} configData - The configuration object to save
+ */
+async function saveOpdConfig(opdId, configData) {
+  try {
+    // Check if config already exists for this OPD
+    const existing = await sbFetch(`/rest/v1/opd_config?opd_id=eq.${opdId}&select=opd_id`, 'GET');
+    
+    let result;
+    if (existing && existing.length > 0) {
+      // Update existing
+      result = await sbFetch(`/rest/v1/opd_config?opd_id=eq.${opdId}`, 'PATCH', {
+        data: configData,
+        updated_at: new Date().toISOString()
+      });
+    } else {
+      // Insert new
+      result = await sbFetch('/rest/v1/opd_config', 'POST', {
+        opd_id: opdId,
+        data: configData,
+        created_at: new Date().toISOString()
+      });
+    }
+    
+    // Clear cache so changes reflect immediately
+    _cachedOpdConfigs.delete(opdId);
+    return { success: true, data: result };
+  } catch (error) {
+    console.error("Error saving OPD config:", error);
+    throw error;
+  }
+}
+
+
+
+
 window._submitOpdConfig = async function(opdId) {
   const namaOpd = document.getElementById('ocfg-nama-opd').value.trim();
   if (!namaOpd) { toast('Nama OPD wajib diisi','error'); return; }
