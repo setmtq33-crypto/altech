@@ -171,6 +171,7 @@ window.refreshKopPreviewArea = async function () {
   // Render HTML kop
   try {
     const htmlKop = await window.kopSurat();
+    console.log("[KOP] htmlKop typeof:", typeof htmlKop, "value:", htmlKop);
     area.innerHTML = htmlKop;
   } catch (err) {
     console.error("Gagal merender pratinjau kop:", err);
