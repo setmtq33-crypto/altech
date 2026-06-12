@@ -8,23 +8,25 @@ async function sbGetAllUsersWithEmail() {
         return [];
     }
 
-    // 1. Coba ambil dari tabel 'profiles' terlebih dahulu
-    try {
-        const data = await sbFetch('/rest/v1/profiles?select=*', 'GET');
-        if (data && !data.error) return data;
-    } catch (e) {
-        console.log("Tabel 'profiles' tidak ada, mencoba tabel 'users'...");
+    // Daftar tebakan nama tabel user yang paling sering digunakan di aplikasi Indonesia
+    const listTabelUser = ['user', 'akun', 'data_user', 'tb_user', 'user_profile', 'm_user'];
+
+    // Sistem akan otomatis mencoba satu per satu sampai ketemu yang benar
+    for (const namaTabel of listTabelUser) {
+        try {
+            const data = await sbFetch(`/rest/v1/${namaTabel}?select=*`, 'GET');
+            
+            // Jika berhasil dan mengembalikan data berupa array/list
+            if (data && Array.isArray(data)) {
+                console.log(`%c[SI-DEVA] Sukses! Tabel user ditemukan: public.${namaTabel}`, "color: #22c55e; font-weight: bold;");
+                return data;
+            }
+        } catch (e) {
+            // Jika error 404, sistem otomatis abaikan dan coba nama tabel berikutnya
+        }
     }
 
-    // 2. Jika 'profiles' gagal/tidak ada, otomatis coba tabel 'users'
-    try {
-        const dataUsers = await sbFetch('/rest/v1/users?select=*', 'GET');
-        if (dataUsers && !dataUsers.error) return dataUsers;
-    } catch (e) {
-        console.error("Tabel 'users' juga tidak ditemukan di database.");
-    }
-
-    // 3. Jika kedua tabel tidak ada, kembalikan array kosong agar halaman tidak crash/macet
+    console.error("[SI-DEVA] Semua tebakan nama tabel user gagal. Halaman diamankan agar tidak crash.");
     return [];
 }
 
