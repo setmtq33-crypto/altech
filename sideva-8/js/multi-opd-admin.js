@@ -1,5 +1,5 @@
 // ============================================================
-//  SI-DEVA — Multi-OPD Admin Management v8 (Final - Gabungan Terbaik)
+// SI-DEVA — Multi-OPD Admin Management v8 (Final)
 // ============================================================
 
 async function sbGetAllUsersWithEmail() {
@@ -25,32 +25,6 @@ async function sbGetAllUsersWithEmail() {
     }
 
     return [];
-}
-
-    // 2. Ambil ID user lain yang sudah pernah dikonfigurasi di tabel akses tanpa perlu tebak tabel
-    try {
-        if (typeof sbFetch !== 'undefined') {
-            const aksesData = await sbFetch('/rest/v1/user_opd_access?select=user_id', 'GET');
-            if (aksesData && Array.isArray(aksesData)) {
-                const uniqueIds = [...new Set(aksesData.map(item => item.user_id).filter(Boolean))];
-                
-                uniqueIds.forEach(id => {
-                    const sudahAda = userList.some(u => u.id === id);
-                    if (!sudahAda) {
-                        userList.push({
-                            id: id,
-                            email: `user.${id.slice(0,5)}@sideva.local`,
-                            display_name: `Pengguna (${id.slice(0,6)})`
-                        });
-                    }
-                });
-            }
-        }
-    } catch (e) {
-        console.log("[SI-DEVA] Menggunakan data user aktif.");
-    }
-
-    return userList;
 }
 
 
