@@ -170,59 +170,68 @@ async function renderManajemenUser() {
 }
 
 async function _renderUserTable(el, users, isSuper) {
-  const canAdd = await _canAdminAddUser();
-  const showAddButton = isSuper || canAdd;
+    const canAdd = await _canAdminAddUser();
+    const showAddButton = isSuper || canAdd;
+    const roleClass = (r) => {
+        if (r === 'super_admin') return 'um-badge-superadmin';
+        if (r === 'admin' || r === 'admin_opd') return 'um-badge-admin';
+        if (r === 'operator') return 'um-badge-operator';
+        return 'um-badge-viewer';
+    };
 
-  const roleClass = (r) => {
-    if (r === 'super_admin') return 'um-badge-superadmin';
-    if (r === 'admin' || r === 'admin_opd') return 'um-badge-admin';
-    if (r === 'operator') return 'um-badge-operator';
-    return 'um-badge-viewer';
-  };
-
-  let html = `
+    let html = `
     <div class="um-header">
-      <div class="um-title">👥 Manajemen User (${users.length})</div>
-      ${showAddButton ? '<button class="btn btn-primary btn-sm" onclick="openAddUserModal()">➕ Tambah User</button>' : ''}
+        <div class="um-title">👥 Manajemen User (${users.length})</div>
+        ${showAddButton ? '<button class="btn btn-primary btn-sm" onclick="openAddUserModal()">➕ Tambah User</button>' : ''}
     </div>
     <div class="card"><div class="table-wrap"><table class="user-opd-table">
-      <thead><tr><th>#</th><th>User</th><th>Email</th><th>Role</th><th>Aksi</th></tr></thead>
-      <tbody>
-  `;
+    <thead><tr><th>#</th><th>User</th><th>Email</th><th>Role</th><th>Aksi</th></tr></thead>
+    <tbody>
+    `;
 
-  users.forEach((u, i) => {
-    const displayName = u.display_name || u.email?.split('@')[0] || '-';
-    const email = u.email || '-';
-    const role = _normalizeRole(u.role);
-    const userId = u.user_id || u.id;
-    
-    // Cegah admin biasa mengedit sesama admin atau super admin
-    const canManage = isSuper || !['admin', 'admin_opd', 'super_admin'].includes(role);
-    const actionBtns = canManage ? `
-      <button class="btn btn-secondary btn-sm" data-um-action="edit" data-user-id="${attr(userId)}" data-name="${attr(displayName)}" data-email="${attr(email)}" data-role="${attr(role)}">✏️ Edit</button>
-      ${typeof openResetPwModal === 'function' ? `<button class="btn btn-secondary btn-sm" data-um-action="reset" data-user-id="${attr(userId)}" data-email="${attr(email)}" title="Reset Password">🔑</button>` : ''}
-      <button class="btn btn-danger btn-sm" data-um-action="delete" data-user-id="${attr(userId)}" data-name="${attr(displayName)}">🗑️ Hapus</button>
-    ` : '<span class="text-muted">-</span>';
-    
-    html += `<tr>
-      <td>${i+1}</td>
-      <td><strong>${escapeHtml(displayName)}</strong><br><small style="color:var(--text3)">${userId?.slice(0,8)}</small></td>
-      <td>${escapeHtml(email)}</td>
-      <td><span class="um-badge-role ${roleClass(role)}">${role}</span></td>
-      <td>${actionBtns}</td>
-    </tr>`;
-  });
+    users.forEach((u, i) => {
+        const displayName = u.display_name || u.email?.split('@')[0] || '-';
+        const email = u.email || '-';
+        const role = _normalizeRole(u.role);
+        const userId = u.user_id || u.id;
 
-  html += `</tbody></table></div></div>`;
-  el.innerHTML = html;
-  el.querySelectorAll('[data-um-action]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const action = btn.dataset.umAction;
-      if (action === 'edit') openEditUserModal(btn.dataset.userId, btn.dataset.name, btn.dataset.email, btn.dataset.role);
-      if (action === 'reset' && typeof openResetPwModal === 'function') openResetPwModal(btn.dataset.userId, btn.dataset.email);
-      if (action === 'delete') deleteUserConfirm(btn.dataset.userId, btn.dataset.name);
+        // Cegah admin biasa mengedit sesama admin atau super admin
+        const canManage = isSuper || !['admin', 'admin_opd', 'super_admin'].includes(role);
+        
+        // KONDISI: Tombol Terapkan Role muncul untuk semua user KECUALI super_admin
+        const tombolTerapkanRole = (role !== 'super_admin') ? `
+            <button class="btn btn-secondary btn-sm" data-um-action="role" data-user-id="${attr(userId)}" data-name="${attr(displayName)}" data-role="${attr(role)}" style="margin-left: 4px; border-color: var(--gold, #c9a84c); color: var(--gold, #c9a84c);">⚙️ Terapkan Role</button>
+        ` : '';
+
+        const actionBtns = canManage ? `
+            <button class="btn btn-secondary btn-sm" data-um-action="edit" data-user-id="${attr(userId)}" data-name="${attr(displayName)}" data-email="${attr(email)}" data-role="${attr(role)}">✏️ Edit</button>
+            ${tombolTerapkanRole}
+            ${typeof openResetPwModal === 'function' ? `<button class="btn btn-secondary btn-sm" data-um-action="reset" data-user-id="${attr(userId)}" data-email="${attr(email)}" title="Reset Password">🔑</button>` : ''}
+            <button class="btn btn-danger btn-sm" data-um-action="delete" data-user-id="${attr(userId)}" data-name="${attr(displayName)}">🗑️ Hapus</button>
+        ` : '<span class="text-muted">-</span>';
+
+        html += `<tr>
+            <td>${i+1}</td>
+            <td><strong>${escapeHtml(displayName)}</strong><br><small style="color:var(--text3)">${userId?.slice(0,8)}</small></td>
+            <td>${escapeHtml(email)}</td>
+            <td><span class="um-badge-role ${roleClass(role)}">${role}</span></td>
+            <td>${actionBtns}</td>
+        </tr>`;
     });
-  });
+
+    html += `</tbody></table></div></div>`;
+    el.innerHTML = html;
+
+    // Menghubungkan klik tombol dengan aksinya masing-masing
+    el.querySelectorAll('[data-um-action]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const action = btn.dataset.umAction;
+            if (action === 'edit') openEditUserModal(btn.dataset.userId, btn.dataset.name, btn.dataset.email, btn.dataset.role);
+            if (action === 'role') openTerapkanRoleModal(btn.dataset.userId, btn.dataset.name, btn.dataset.role);
+            if (action === 'reset' && typeof openResetPwModal === 'function') openResetPwModal(btn.dataset.userId, btn.dataset.email);
+            if (action === 'delete') deleteUserConfirm(btn.dataset.userId, btn.dataset.name);
+        });
+    });
 }
 
 // ========== FITUR: TAMBAH USER ==========
@@ -420,75 +429,28 @@ function attr(text) {
 // FITUR TAMBAHAN: TOMBOL EDIT ROLE OTOMATIS (KECUALI SUPER ADMIN)
 // ============================================================
 
-function injekTombolEditRole() {
-    // Mencari tabel user di halaman manajemen user
-    const tabelBody = document.querySelector('table tbody') || document.querySelector('.user-opd-table tbody');
-    if (!tabelBody) return;
-
-    const barisUser = tabelBody.querySelectorAll('tr');
-    barisUser.forEach(row => {
-        const isiTeks = row.textContent || "";
-        
-        // PROTEKSI: Jika baris ini adalah milik super_admin, abaikan/jangan beri tombol edit role
-        if (isiTeks.includes('super_admin')) {
-            return;
-        }
-
-        // Cari kolom AKSI (kolom terakhir di baris tersebut)
-        const kolomAksi = row.querySelector('td:last-child');
-        if (!kolomAksi) return;
-
-        // Cegah tombol ganda jika fungsi ini berjalan berulang kali
-        if (kolomAksi.querySelector('.btn-edit-role-custom')) return;
-
-        // Mengambil data user dari baris tabel untuk dikirim ke popup modal
-        let userId = "";
-        const idElement = row.querySelector('div[style*="font-size"], small, span');
-        if (idElement) {
-            userId = idElement.textContent.trim();
-        }
-
-        const namaUser = row.querySelector('td:first-child div')?.textContent.trim() || "Pengguna";
-        const roleSaatIni = row.querySelector('td:nth-child(4)')?.textContent.trim().toLowerCase() || "viewer";
-
-        // Membuat tombol baru dengan desain yang menyatu dengan tema SI-DEVA
-        const btnRole = document.createElement('button');
-        btnRole.className = 'btn btn-secondary btn-sm btn-edit-role-custom';
-        btnRole.style.cssText = 'margin-left: 6px; border-color: var(--gold, #c9a84c); color: var(--gold, #c9a84c);';
-        btnRole.innerHTML = '⚙️ Role';
-        
-        // Trigger modal ketika tombol diklik
-        btnRole.onclick = function() {
-            bukaModalUbahRole(userId, namaUser, roleSaatIni);
-        };
-
-        // Sisipkan tombol ke dalam kolom tindakan
-        kolomAksi.appendChild(btnRole);
-    });
-}
-
-// Fungsi untuk memunculkan jendela Pop-up / Modal pilihan role baru
-function bukaModalUbahRole(userId, username, currentRole) {
+// ========== FITUR: MODAL TERAPKAN ROLE NATIVE ==========
+window.openTerapkanRoleModal = function(userId, username, currentRole) {
     const modal = document.createElement('div');
     modal.id = 'modal-custom-role';
     modal.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;padding:16px;';
     
     modal.innerHTML = `
         <div style="background:var(--surface, #1a1a1a); border:1px solid var(--border, #2a2a2a); border-radius:12px; padding:24px; width:100%; max-width:380px; box-shadow:0 20px 50px rgba(0,0,0,0.5);">
-            <div style="font-size:16px; font-weight:700; margin-bottom:4px; color:#fff;">⚙️ Ubah Tingkat Akses</div>
+            <div style="font-size:16px; font-weight:700; margin-bottom:4px; color:#fff;">⚙️ Terapkan Role Baru</div>
             <div style="font-size:13px; color:#888; margin-bottom:20px;">User: <span style="color:var(--gold, #c9a84c); font-weight:600;">${username}</span></div>
             
             <div style="margin-bottom:24px;">
-                <label style="display:block; font-size:12px; font-weight:600; color:#aaa; margin-bottom:8px;">Pilih Hak Akses Baru</label>
+                <label style="display:block; font-size:12px; font-weight:600; color:#aaa; margin-bottom:8px;">Pilih Tingkat Akses</label>
                 <select id="select-new-role" style="width:100%; padding:10px 12px; border-radius:8px; border:1px solid #333; background:#222; color:#fff; font-size:13px; outline:none;">
                     <option value="viewer" ${currentRole === 'viewer' ? 'selected' : ''}>Viewer (Hanya Melihat)</option>
-                    <option value="editor" ${currentRole === 'editor' ? 'selected' : ''}>Editor (Bisa Input & Edit)</option>
+                    <option value="operator" ${currentRole === 'operator' ? 'selected' : ''}>Operator (Bisa Input & Edit)</option>
                     <option value="admin" ${currentRole === 'admin' ? 'selected' : ''}>Admin OPD</option>
                 </select>
             </div>
             
             <div style="display:flex; gap:8px; justify-content:flex-end;">
-                <button class="btn btn-primary" id="btn-save-custom-role" style="font-size:13px;">💾 Simpan</button>
+                <button class="btn btn-primary" id="btn-save-custom-role" style="font-size:13px;">💾 Terapkan Role</button>
                 <button class="btn btn-secondary" onclick="document.getElementById('modal-custom-role').remove()" style="font-size:13px;">Batal</button>
             </div>
         </div>
@@ -496,34 +458,29 @@ function bukaModalUbahRole(userId, username, currentRole) {
     
     document.body.appendChild(modal);
 
-    // Menyimpan perubahan ke tabel user_roles Supabase
+    // Fungsi tombol simpan aksi / terapkan perubahan ke Supabase
     document.getElementById('btn-save-custom-role').onclick = async function() {
         const roleBaru = document.getElementById('select-new-role').value;
-        this.innerText = "⏳ Menyimpan...";
+        this.innerText = "⏳ Menerapkan...";
         this.disabled = true;
 
         try {
             if (typeof sbFetch !== 'undefined') {
-                // Melakukan update data role ke Supabase
                 await sbFetch(`/rest/v1/user_roles?user_id=eq.${userId}`, 'PATCH', { role: roleBaru });
                 
-                if (typeof toast === 'function') toast('Role berhasil diperbarui!', 'success');
-                else alert('Role berhasil diperbarui!');
+                if (typeof toast === 'function') toast('Role berhasil diterapkan!', 'success');
+                else alert('Role berhasil diterapkan!');
                 
                 modal.remove();
-                location.reload(); // Sinkronisasi ulang tampilan layar halaman
+                renderManajemenUser(); // Refresh otomatis isi tabel tanpa reload penuh halaman
             } else {
                 throw new Error("Koneksi database (sbFetch) tidak siap.");
             }
         } catch (err) {
-            alert("Gagal memperbarui role: " + err.message);
-            this.innerText = "💾 Simpan";
+            alert("Gagal menerapkan role: " + err.message);
+            this.innerText = "💾 Terapkan Role";
             this.disabled = false;
         }
     };
 }
-
-// Menjalankan pemindaian otomatis agar tombol langsung disisipkan saat menu dibuka
-setInterval(injekTombolEditRole, 600);
-
 
