@@ -43,8 +43,6 @@ async function _uploadToStorage(file, path) {
   });
 
   const text = await res.text();
-
-  // (Opsional) log untuk debugging
   console.log("upload status", res.status, "body", text);
 
   if (!res.ok) {
@@ -71,7 +69,6 @@ window.kopSurat = async function () {
   const opdId = await _getOpdId();
   if (!opdId) return _fallbackKop();
 
-  // Coba ambil dari Supabase dulu
   let kopUrl = null;
   try {
     const cfg = await getOpdConfig(opdId);
@@ -80,7 +77,6 @@ window.kopSurat = async function () {
     // ignore, fallback localStorage
   }
 
-  // Fallback localStorage
   if (!kopUrl) kopUrl = localStorage.getItem('sideva_kop_surat_img');
 
   if (kopUrl) {
@@ -127,7 +123,7 @@ window.processKopFile = async function (file) {
 
     localStorage.setItem('sideva_kop_surat_img', publicUrl);
 
-    await window.refreshKopPreviewArea();
+    void window.refreshKopPreviewArea(); // pakai void karena async
     toast('✅ Kop surat berhasil diupload!', 'success');
   } catch (err) {
     toast('Gagal upload kop: ' + (err?.message || String(err)), 'error');
@@ -170,8 +166,10 @@ window.refreshKopPreviewArea = async function () {
 
   // Render HTML kop
   try {
-    const htmlKop = await window.kopSurat();
+    // PERBAIKAN: pastikan hasil akhirnya string (anti kasus Promise ketarik)
+    const htmlKop = await Promise.resolve(window.kopSurat());
     console.log("[KOP] htmlKop typeof:", typeof htmlKop, "value:", htmlKop);
+
     area.innerHTML = htmlKop;
   } catch (err) {
     console.error("Gagal merender pratinjau kop:", err);
@@ -213,7 +211,7 @@ window.refreshKopPreviewArea = async function () {
 // ================== INIT ==================
 window.initKopSuratSystem = async function () {
   await window.refreshKopPreviewArea();
-  setTimeout(() => window.refreshKopPreviewArea(), 800);
+  setTimeout(() => void window.refreshKopPreviewArea(), 800);
 };
 
 // ================== WATCHDOG: aktifkan saat form instansi ada ==================
@@ -249,17 +247,17 @@ function sinkronkanInputKePreview() {
     el.addEventListener('input', (e) => {
       if (!window.appConfig) window.appConfig = {};
       window.appConfig[fields[id]] = e.target.value;
-      window.refreshKopPreviewArea();
+      void window.refreshKopPreviewArea(); // async tanpa await
     });
   });
 }
 
 // Jalankan saat DOM siap
 function bootKopSystem() {
-  window.initKopSuratSystem();
+  void window.initKopSuratSystem();
   sinkronkanInputKePreview();
   // satu refresh lagi untuk aman
-  setTimeout(() => window.refreshKopPreviewArea(), 300);
+  setTimeout(() => void window.refreshKopPreviewArea(), 300);
 }
 
 if (document.readyState === 'loading') {
