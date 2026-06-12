@@ -269,7 +269,16 @@ window.kopSurat = async function() {
   return (result instanceof Promise) ? await result : result;
 };
 
-
+window.refreshKopPreviewArea = async function() {
+  const area = document.getElementById('kop-preview-area');
+  if (!area) return;
+  // Memastikan hasil ditunggu (await) sebelum masuk ke DOM
+  const html = await window.kopSurat();
+  area.innerHTML = html; 
+  console.log("Pratinjau berhasil diperbarui.");
+};
+// Jalankan ulang
+refreshKopPreviewArea();
 
 
 
