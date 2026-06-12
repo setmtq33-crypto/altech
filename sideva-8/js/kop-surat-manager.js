@@ -133,12 +133,38 @@ window.processLogo = async function(file) {
 window.refreshKopPreviewArea = async function() {
   const area = document.getElementById('kop-preview-area');
   if (!area) return;
+
+  // Render HTML Kop Surat (Gambar atau Teks Fallback)
   area.innerHTML = await window.kopSurat();
 
   const lbl = document.getElementById('kop-preview-label-text');
   if (lbl) {
-    const hasImg = localStorage.getItem('sideva_kop_surat_img') || (await getOpdConfig(await _getOpdId()))?._kopSuratImg;
-    lbl.textContent = hasImg ? '✅ Menggunakan gambar kop surat' : '📝 Menggunakan teks fallback';
+    let hasImg = false;
+    
+    try {
+      // 1. Cek cache lokal dulu
+      const localImg = localStorage.getItem('sideva_kop_surat_img');
+      
+      // 2. Cek ke database (Supabase) jika fungsi pembantu tersedia
+      let dbImg = null;
+      if (typeof getOpdConfig === 'function') {
+        const opdId = await _getOpdId();
+        if (opdId) {
+          const cfg = await getOpdConfig(opdId);
+          dbImg = cfg?._kopSuratImg;
+        }
+      }
+
+      hasImg = !!(localImg || dbImg);
+    } catch (e) {
+      console.warn("Gagal memeriksa status gambar kop:", e);
+      hasImg = !!localStorage.getItem('sideva_kop_surat_img');
+    }
+
+    // Update label status di UI
+    lbl.textContent = hasImg 
+      ? '✅ Menggunakan gambar kop surat' 
+      : '📝 Menggunakan teks fallback (Belum ada gambar)';
   }
 };
 
