@@ -223,3 +223,35 @@ function cekDanAktifkanKopSurat() {
 // Lakukan pemindaian otomatis setiap 500 milidetik
 setInterval(cekDanAktifkanKopSurat, 500);
 
+// ================== LIVE PREVIEW SYNC ==================
+function sinkronkanInputKePreview() {
+  const fields = {
+    'nama_instansi': 'namaInstansi',
+    'alamat_instansi': 'alamat', // Sesuaikan ID input di HTML Anda
+    'telepon_instansi': 'telepon'
+  };
+
+  Object.keys(fields).forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.addEventListener('input', (e) => {
+        // Update temporary config
+        if (!window.appConfig) window.appConfig = {};
+        window.appConfig[fields[id]] = e.target.value;
+        
+        // Render ulang area pratinjau (hanya jika sedang pakai teks fallback)
+        window.refreshKopPreviewArea();
+      });
+    }
+  });
+}
+
+// Panggil fungsi ini saat inisialisasi
+window.addEventListener('DOMContentLoaded', sinkronkanInputKePreview);
+
+
+
+
+
+
+
