@@ -185,27 +185,33 @@ function _fallbackKop() {
   </div>`;
 }
 
-window.kopSurat = async function () {
-  const opdId = await _getOpdId();
-  if (!opdId) return _fallbackKop();
+window.kopSurat = function () {
 
-  let kopUrl = null;
-  try {
-    const cfg = await getOpdConfig(opdId);
-    kopUrl = cfg?._kopSuratImg ?? null;
-  } catch (e) {
-    // ignore, fallback localStorage
-  }
+  const localImg = localStorage.getItem('sideva_kop_surat_img');
 
-  if (!kopUrl) kopUrl = localStorage.getItem('sideva_kop_surat_img');
-
-  if (kopUrl) {
+  if (localImg) {
     return `<div style="margin-bottom:16px;text-align:center;">
-      <img src="${kopUrl}" style="max-width:100%; max-height:180px; object-fit:contain; border-bottom:3px double #000; padding-bottom:8px;">
+      <img src="${localImg}?t=${Date.now()}"
+           style="max-width:100%;max-height:180px;object-fit:contain;border-bottom:3px double #000;padding-bottom:8px;">
     </div>`;
   }
 
-  return _fallbackKop();
+  const cfg = window.appConfig || {};
+
+  const namaPem =
+    ('PEMERINTAH ' + (cfg.kabupaten || '')).toUpperCase();
+
+  const namaInst =
+    (cfg.namaInstansi || 'INSTANSI PEMERINTAH').toUpperCase();
+
+  return `<div style="margin-bottom:16px;text-align:center;border-bottom:3px double #000;padding-bottom:8px;">
+    <strong style="font-size:16px;">${namaPem}</strong><br>
+    <strong style="font-size:18px;">${namaInst}</strong><br>
+    <span style="font-size:12px;">
+      ${cfg.alamat || ''}
+      ${cfg.telepon ? '• Telp. ' + cfg.telepon : ''}
+    </span>
+  </div>`;
 };
 
 // ================== LOGO ==================
@@ -282,13 +288,12 @@ window.processKopFile = async function (file) {
 
       document.getElementById('kop-preview-area');
 
-    if (preview) {
+    localStorage.setItem(
+      'sideva_kop_surat_img',
+      publicUrl
+    );
 
-      preview.innerHTML =
-
-        `<img src="${publicUrl}?t=${Date.now()}" style="max-width:100%;max-height:180px;">`;
-
-    }
+await window.refreshKopPreviewArea();
 
     toast('Kop surat berhasil disimpan', 'success');
 
@@ -400,7 +405,7 @@ window.refreshKopPreviewArea = async function () {
   // Render HTML kop
   try {
     // PERBAIKAN: pastikan hasil akhirnya string (anti kasus Promise ketarik)
-    const htmlKop = await Promise.resolve(window.kopSurat());
+    const htmlKop = window.kopSurat();
     console.log("[KOP] htmlKop typeof:", typeof htmlKop, "value:", htmlKop);
 
     area.innerHTML = htmlKop;
