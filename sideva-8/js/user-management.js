@@ -25,14 +25,20 @@ async function _getMyOpdId() {
 
 // Helper: Fungsi Invite User (Dibutuhkan oleh submitAddUser)
 async function sbInviteUser(email, password, role, displayName) {
-  return await sbFetch('/auth/v1/signup', 'POST', {
-    email: email,
-    password: password,
-    data: { 
-      role: role, 
-      display_name: displayName 
+  try {
+    const res = await sbFetch('/auth/v1/signup', 'POST', {
+      email: email,
+      password: password,
+      data: { role, display_name: displayName }
+    });
+    return res;
+  } catch (err) {
+    // Jika 422, kemungkinan user sudah ada
+    if (err.message.includes('422')) {
+      throw new Error('Email sudah terdaftar atau password tidak memenuhi syarat keamanan.');
     }
-  });
+    throw err;
+  }
 }
 
 // Cek apakah admin biasa (non-super) boleh menambah user
