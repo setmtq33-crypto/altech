@@ -166,13 +166,9 @@ function cekDanAktifkanKopSurat() {
     if (inputNamaInstansi && !window.kopSuratAktif) {
         console.log("[SI-DEVA] Form Pengaturan Instansi terdeteksi. Mengaktifkan Live Preview...");
         
-        // Menjalankan fungsi bawaan utama dari kop-surat-manager.js
-        if (typeof initKopSurat === 'function') {
-            initKopSurat();
-        } else if (typeof initKopSuratManager === 'function') {
-            initKopSuratManager();
-        } else if (typeof setupKopSurat === 'function') {
-            setupKopSurat();
+        // Memanggil fungsi UTAMA asli milik Anda yang ada di baris atas file ini
+        if (typeof window.initKopSuratSystem === 'function') {
+            window.initKopSuratSystem();
         }
         
         window.kopSuratAktif = true; // Kunci agar tidak terjadi inisialisasi ganda
