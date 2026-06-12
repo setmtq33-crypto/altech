@@ -2,6 +2,18 @@
 // SI-DEVA — Multi-OPD Admin Management v8 (Final)
 // ============================================================
 
+async function restoreSession() {
+  const sessionData = localStorage.getItem('sideva_session_v3');
+  if (sessionData) {
+    const session = JSON.parse(sessionData);
+    // Logika untuk validasi token atau set global state
+    window._user = session.user;
+    console.log("Sesi dipulihkan untuk:", session.user.email);
+  }
+}
+restoreSession();
+
+
 async function sbGetAllUsersWithEmail() {
     if (typeof sbFetch === 'undefined') {
         console.error("Fungsi 'sbFetch' tidak ditemukan.");
