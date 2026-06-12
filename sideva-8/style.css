@@ -2002,3 +2002,43 @@ kbd {
   white-space: normal !important;
   word-break: break-word;
 }
+
+/* --- COPY DARI SINI KE BAGIAN BAWAH STYLE.CSS --- */
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 8px !important;
+}
+
+/* Kotak untuk setiap grup menu */
+.nav-group-wrapper {
+  margin-bottom: 12px;
+  padding: 10px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Aksen warna khusus Tools (Oranye) */
+.nav-group-tools {
+  border-left: 3px solid #f39c12;
+}
+
+/* Aksen warna khusus Super Admin (Merah) */
+.nav-group-admin {
+  border-left: 3px solid #ff4d4d;
+  background: rgba(231, 76, 60, 0.08);
+  margin-top: 10px;
+}
+
+.nav-section-label {
+  font-size: 11px !important;
+  font-weight: bold;
+  letter-spacing: 1px;
+  color: rgba(255, 255, 255, 0.4) !important;
+  margin-bottom: 10px !important;
+  text-transform: uppercase;
+}
+/* --- SAMPAI SINI --- */
+
