@@ -6,17 +6,67 @@ const STORAGE_BUCKET = 'sideva-assets';
 
 // ================== HELPERS ==================
 async function _getOpdId() {
-  let id = window._currentOpdId || localStorage.getItem('sideva_current_opd_id');
 
-  if (!id) {
-    const sessionStr = localStorage.getItem('sideva_session_v3');
-    if (sessionStr) {
-      const session = JSON.parse(sessionStr);
-      id = session.user?.user_metadata?.opd_id || session.user?.opd_id;
+  const candidates = [
+
+    window._currentOpdId,
+
+    window.currentOpdId,
+
+    localStorage.getItem('sideva_current_opd_id'),
+
+    localStorage.getItem('currentOpdId')
+
+  ];
+
+  for (const v of candidates) {
+
+    if (v && String(v).trim() !== '') {
+
+      return String(v);
+
     }
+
   }
 
-  return id || null;
+  try {
+
+    const session = JSON.parse(
+
+      localStorage.getItem('sideva_session_v3') || '{}'
+
+    );
+
+    const user = session.user || {};
+
+    const meta = user.user_metadata || {};
+
+    const appMeta = user.app_metadata || {};
+
+    return (
+
+      meta.opd_id ||
+
+      meta.opdId ||
+
+      appMeta.opd_id ||
+
+      appMeta.opdId ||
+
+      user.opd_id ||
+
+      user.opdId ||
+
+      null
+
+    );
+
+  } catch (e) {
+
+    return null;
+
+  }
+
 }
 
 async function _getAccessToken() {
@@ -25,31 +75,51 @@ async function _getAccessToken() {
 }
 
 async function _uploadToStorage(file, path) {
+
   const token = await _getAccessToken();
 
-  if (!token) throw new Error('Belum login');
+  if (!token) {
 
-  const url = `${SUPABASE_URL}/storage/v1/object/${STORAGE_BUCKET}/${path}`;
+    throw new Error('Session login tidak ditemukan');
+
+  }
+
+  const formData = new FormData();
+
+  formData.append('', file);
+
+  const url =
+
+    `${SUPABASE_URL}/storage/v1/object/${STORAGE_BUCKET}/${path}`;
 
   const res = await fetch(url, {
-    method: 'PUT',
+
+    method: 'POST',
+
     headers: {
+
       apikey: SUPABASE_ANON_KEY,
+
       Authorization: `Bearer ${token}`,
-      "Content-Type": file.type,
-      "x-upsert": "true",
+
+      'x-upsert': 'true'
+
     },
-    body: file,
+
+    body: file
+
   });
 
-  const text = await res.text();
-  console.log("upload status", res.status, "body", text);
-
   if (!res.ok) {
-    throw new Error(`Upload gagal: ${res.status} - ${text}`);
+
+    const errText = await res.text();
+
+    throw new Error(errText || `HTTP ${res.status}`);
+
   }
 
   return `${SUPABASE_URL}/storage/v1/object/public/${STORAGE_BUCKET}/${path}`;
+
 }
 
 // ================== KOP SURAT ==================
@@ -103,60 +173,173 @@ window.getLogoUrl = async function () {
 
 // ================== UPLOAD HANDLER ==================
 window.processKopFile = async function (file) {
-  if (!file) return toast('Belum ada file yang dipilih', 'error');
-  if (!file.type?.startsWith('image/')) return toast('File harus gambar!', 'error');
-
-  const opdId = await _getOpdId();
-  if (!opdId) return toast('Pilih OPD terlebih dahulu', 'error');
 
   try {
-    const name = file.name || '';
-    const extRaw = name.includes('.') ? name.split('.').pop() : 'png';
-    const ext = (extRaw || 'png').toLowerCase();
 
-    const path = `kop/kop_${opdId}.${ext}`;
-    const publicUrl = await _uploadToStorage(file, path);
+    if (!file) {
 
-    const currentCfg = await getOpdConfig(opdId).catch(() => ({})) || {};
-    const updatedCfg = { ...currentCfg, _kopSuratImg: publicUrl };
-    await saveOpdConfig(opdId, updatedCfg);
+      toast('Pilih file terlebih dahulu', 'error');
 
-    localStorage.setItem('sideva_kop_surat_img', publicUrl);
+      return;
 
-    void window.refreshKopPreviewArea(); // pakai void karena async
-    toast('✅ Kop surat berhasil diupload!', 'success');
+    }
+
+    const opdId = await _getOpdId();
+
+    if (!opdId) {
+
+      throw new Error('OPD ID tidak ditemukan');
+
+    }
+
+    const ext =
+
+      (file.name.split('.').pop() || 'png')
+
+        .toLowerCase();
+
+    const path =
+
+      `kop/${opdId}/kop_${Date.now()}.${ext}`;
+
+    const publicUrl =
+
+      await _uploadToStorage(file, path);
+
+    let cfg = {};
+
+    try {
+
+      cfg = await getOpdConfig(opdId);
+
+    } catch (_) {}
+
+    cfg = cfg || {};
+
+    cfg._kopSuratImg = publicUrl;
+
+    await saveOpdConfig(opdId, cfg);
+
+    localStorage.setItem(
+
+      'sideva_kop_surat_img',
+
+      publicUrl
+
+    );
+
+    const preview =
+
+      document.getElementById('kop-preview-area');
+
+    if (preview) {
+
+      preview.innerHTML =
+
+        `<img src="${publicUrl}?t=${Date.now()}" style="max-width:100%;max-height:180px;">`;
+
+    }
+
+    toast('Kop surat berhasil disimpan', 'success');
+
   } catch (err) {
-    toast('Gagal upload kop: ' + (err?.message || String(err)), 'error');
+
+    console.error(err);
+
+    toast(
+
+      err.message || 'Upload gagal',
+
+      'error'
+
+    );
+
   }
+
 };
 
 window.processLogo = async function (file) {
-  if (!file) return toast('Belum ada file yang dipilih', 'error');
-  if (!file.type?.startsWith('image/')) return toast('File harus gambar!', 'error');
-
-  const opdId = await _getOpdId();
-  if (!opdId) return toast('Pilih OPD terlebih dahulu', 'error');
 
   try {
-    const name = file.name || '';
-    const extRaw = name.includes('.') ? name.split('.').pop() : 'png';
-    const ext = (extRaw || 'png').toLowerCase();
 
-    const path = `logo/logo_${opdId}.${ext}`;
-    const publicUrl = await _uploadToStorage(file, path);
+    if (!file) {
 
-    const currentCfg = await getOpdConfig(opdId).catch(() => ({})) || {};
-    const updatedCfg = { ...currentCfg, _logoInstansi: publicUrl };
-    await saveOpdConfig(opdId, updatedCfg);
+      toast('Pilih file terlebih dahulu', 'error');
 
-    localStorage.setItem('sideva_logo_instansi', publicUrl);
-    toast('✅ Logo berhasil diupload!', 'success');
+      return;
 
-    const preview = document.getElementById('logo-img-preview');
-    if (preview) preview.src = publicUrl;
+    }
+
+    const opdId = await _getOpdId();
+
+    if (!opdId) {
+
+      throw new Error('OPD ID tidak ditemukan');
+
+    }
+
+    const ext =
+
+      (file.name.split('.').pop() || 'png')
+
+        .toLowerCase();
+
+    const path =
+
+      `logo/${opdId}/logo_${Date.now()}.${ext}`;
+
+    const publicUrl =
+
+      await _uploadToStorage(file, path);
+
+    let cfg = {};
+
+    try {
+
+      cfg = await getOpdConfig(opdId);
+
+    } catch (_) {}
+
+    cfg = cfg || {};
+
+    cfg._logoInstansi = publicUrl;
+
+    await saveOpdConfig(opdId, cfg);
+
+    localStorage.setItem(
+
+      'sideva_logo_instansi',
+
+      publicUrl
+
+    );
+
+    const img =
+
+      document.getElementById('logo-img-preview');
+
+    if (img) {
+
+      img.src = publicUrl + '?t=' + Date.now();
+
+    }
+
+    toast('Logo berhasil disimpan', 'success');
+
   } catch (err) {
-    toast('Gagal upload logo: ' + (err?.message || String(err)), 'error');
+
+    console.error(err);
+
+    toast(
+
+      err.message || 'Upload gagal',
+
+      'error'
+
+    );
+
   }
+
 };
 
 // ================== PREVIEW REFRESH ==================
