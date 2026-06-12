@@ -5,7 +5,19 @@
 const STORAGE_BUCKET = 'sideva-assets';
 
 async function _getOpdId() {
-  return window._currentOpdId || localStorage.getItem('sideva_current_opd_id') || null;
+  // 1. Cek variabel global atau localStorage
+  let id = window._currentOpdId || localStorage.getItem('sideva_current_opd_id');
+  
+  // 2. Jika masih kosong, coba ambil dari data session user login
+  if (!id) {
+    const sessionStr = localStorage.getItem('sideva_session_v3');
+    if (sessionStr) {
+      const session = JSON.parse(sessionStr);
+      // Ambil opd_id dari profile user
+      id = session.user?.user_metadata?.opd_id || session.user?.opd_id;
+    }
+  }
+  return id;
 }
 
 async function _uploadToStorage(file, path) {
@@ -249,7 +261,13 @@ function sinkronkanInputKePreview() {
 // Panggil fungsi ini saat inisialisasi
 window.addEventListener('DOMContentLoaded', sinkronkanInputKePreview);
 
-
+// Safe Wrapper untuk mencegah [object Promise] jika dipanggil tanpa await
+const originalKopSurat = window.kopSurat;
+window.kopSurat = async function() {
+  const result = await originalKopSurat();
+  // Jika karena suatu alasan hasilnya masih promise (nested), selesaikan
+  return (result instanceof Promise) ? await result : result;
+};
 
 
 
