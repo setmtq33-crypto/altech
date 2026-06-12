@@ -3,19 +3,29 @@
 // ============================================================
 
 async function sbGetAllUsersWithEmail() {
-    const userList = [];
-    
-    // 1. Ambil data Anda (Admin yang sedang login) sebagai data utama agar tidak kosong
-    if (typeof getCurrentUser === 'function') {
-        const currentUser = getCurrentUser();
-        if (currentUser) {
-            userList.push({
-                id: currentUser.id || currentUser.user_id || currentUser.sub || "admin_id",
-                email: currentUser.email || "superadmin@sideva.go.id",
-                display_name: currentUser.display_name || "Super Admin (Anda)"
-            });
-        }
+    if (typeof sbFetch === 'undefined') {
+        console.error("Fungsi 'sbFetch' tidak ditemukan.");
+        return [];
     }
+
+    try {
+        // Mengambil data pengguna asli langsung dari tabel user_roles
+        const data = await sbFetch('/rest/v1/user_roles?select=*', 'GET');
+        
+        if (data && Array.isArray(data)) {
+            // Menyinkronkan struktur kolom agar dibaca dengan benar oleh Manajemen OPD
+            return data.map(u => ({
+                id: u.user_id || u.id,
+                email: u.email || '-',
+                display_name: u.display_name || u.email?.split('@')[0] || 'Pengguna'
+            }));
+        }
+    } catch (error) {
+        console.error("Gagal sinkronisasi dengan tabel user_roles:", error);
+    }
+
+    return [];
+}
 
     // 2. Ambil ID user lain yang sudah pernah dikonfigurasi di tabel akses tanpa perlu tebak tabel
     try {
@@ -426,3 +436,33 @@ window.addEventListener('sideva:page-changed', (e) => {
 window.addEventListener('sb-ready', () => {
   if (document.getElementById('page-opd-management')?.classList.contains('active')) renderOpdManagement();
 });
+
+// ============================================================
+// PATCH SELESAI: MENYEMBUNYIKAN KOLOM AKSI YANG KONFLIK & REDUNDAN
+// ============================================================
+function hapusKolomAksiKonflikOPD() {
+    const semuaTabel = document.querySelectorAll('table');
+    
+    semuaTabel.forEach(tabel => {
+        const headerKolom = tabel.querySelectorAll('thead th');
+        
+        // Cek spesifik: Tabel Manajemen OPD hanya memiliki 3 kolom (User, Akses OPD, Aksi)
+        // Sedangkan tabel Manajemen User memiliki 5 kolom (sehingga tidak akan ikut terhapus)
+        if (headerKolom.length === 3 && (headerKolom[2].textContent.trim() === 'AKSI' || headerKolom[2].textContent.trim() === 'Aksi')) {
+            
+            tabel.querySelectorAll('tr').forEach(row => {
+                if (row.cells.length === 3) {
+                    row.cells[2].style.display = 'none'; // Sembunyikan kolom ke-3 (Aksi)
+                }
+            });
+        }
+    });
+}
+
+// Jalankan pemindaian otomatis agar kolom langsung bersih saat halaman dimuat
+setInterval(hapusKolomAksiKonflikOPD, 400);
+
+
+
+
+
